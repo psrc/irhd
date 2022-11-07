@@ -1,19 +1,8 @@
 #################################################################################
-# Title: Clean 2020 original files from funders
-# Author: Jesse Warren
-# Date created: 2021-12-02
-# ----------------------------------------------
-# Overview: Clean 2020 original files we received from funders to get them prepared for joining
-# Steps: 
-#    1.
-#    2.
-#    3.
-#    4.
+# Title: 2022 update to IRHD, Cleaning WSHFC data and incorporating into existing database
+# Author: Eric Clute (with assistance from Jesse Warren, King County)
+# Date created: 2022-11-07
 #################################################################################
-
-#outstanding questions:
-#-categorize SROs as group homes or 0 bedrooms?
-
 
 ## load packages-----------------------------------------------------------------
 library(tidyverse)
@@ -24,18 +13,9 @@ library(janitor)
 
 ## 1) load data ---------------------------------------------------------------------
 
+J_drive_raw_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2022_update/WSHFC/Raw Data/"
 
-#save N: drive raw files location filepath
-N_drive_raw_files_filepath <- "N:/PME/Homeless Housing and Services/Data Sets/Income Restricted Database/original_data_provider_files/2021/raw_files/"
-
-#load original files from reporting agencies
-original_ARCH_raw <- read_xlsx(paste0(N_drive_raw_files_filepath, "ARCH_Housing_Units-Recorded_Regulatory_Agreements-KC_dashboard.xlsx"))
-original_RHA_raw <- read_xlsx(paste0(N_drive_raw_files_filepath, "RHA Subsidized Housing 2021.xlsx"),
-                              skip = 1)
-original_SHA_raw <- read_xlsx(paste0(N_drive_raw_files_filepath, "KC Income-Restricted Housing db 2020 Update.xlsx"))
-original_WSHFC_raw <- read_xlsx(paste0(N_drive_raw_files_filepath, "PSRC WBARS Report_12-31-2020.xlsx"))
-original_SOH_raw <- read_xlsx(paste0(N_drive_raw_files_filepath, "City of Seattle Rent and Income Restricted Housing as of 2020-12-31 for KING COUNTY 2021-10-22.xlsx"))
-original_KCHA_raw_2020 <- read_xlsx(paste0(N_drive_raw_files_filepath, "KCHAPSRCDatabase-2020 Update.xlsx"),
+original_WSHFC_raw <- read_xlsx(paste0(N_drive_raw_files_filepath, "PSRC WBARS Report_12-31-2020.xlsx")),
                                     skip = 4,
                                     col_types = c("text",
                                                   "text",
