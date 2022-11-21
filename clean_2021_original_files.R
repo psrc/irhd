@@ -95,9 +95,8 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
   mutate(Funder = paste(sort(unique(Funder)), collapse = ", "))
 
 #################################################################################
-#Questions for Jesse
-#   Line 41 removal of HOME units - are we sure they're in the AMI count data?
-#   Line 54-59: how to view? Is this just illustrative or are you diving into each duplicate here?
+#Question for Jesse
+#   Removal of HOME units - are we sure they're in the AMI count data?
 
 #remove Number of HOME Units category, which isnt needed and is duplicative of AMI count categories
 # WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -111,6 +110,10 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
             n = 1,
             with_ties = TRUE) %>% 
   distinct()
+
+#################################################################################
+#Question for Jesse
+#   How to view below output?
 
 #view cases where there are still multiple properties in the dataset
 WSHFC_cleaned %>% 
@@ -136,15 +139,22 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
             with_ties = TRUE) %>% 
   distinct()
 
+#check to see if any duplicates
+WSHFC_Dups <- WSHFC_cleaned %>% 
+  distinct() %>% 
+  group_by(`Site Name`, Address) %>% 
+  mutate(n = n()) %>% 
+  filter(n > 1) %>% 
+  arrange(`Project Name`, `Site Name`, Address)
+
 #for entries where there are multiple properties with the same total restricted unit count but different other data, select record that seems correct
 WSHFC_cleaned <- WSHFC_cleaned %>% 
   distinct() %>% 
-  
   filter(!(`Project Name` == "Hirabayashi Place" & `Site Name` == "Hirabayashi Place" & `50%` == 57)) %>% #select SOH record, remove Commerce record
   filter(!(`Project Name` == "Passage Point" & `Site Name` == "Passage Point" & `50%` == 0)) #select KC record, remove WSHFC record
 
 #check to see if any duplicates remaining - should be 0
-WSHFC_cleaned %>% 
+WSHFC_Dups <- WSHFC_cleaned %>% 
   distinct() %>% 
   group_by(`Site Name`, Address) %>% 
   mutate(n = n()) %>% 
