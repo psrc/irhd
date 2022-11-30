@@ -1,7 +1,7 @@
 #################################################################################
 # Title: 2022 update to IRHD, Cleaning WSHFC data and incorporating into existing database
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
-# Date created: 2022-11-07
+# Date created: 2022-11-30
 #################################################################################
 
 ## load packages-----------------------------------------------------------------
@@ -95,8 +95,7 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
   mutate(Funder = paste(sort(unique(Funder)), collapse = ", "))
 
 #################################################################################
-#Question for Jesse
-#   Removal of HOME units - are we sure they're in the AMI count data?
+#Home units included in AMI categories - Discuss with Carol - Ask WSHFC about duplications in HOME columns
 
 #remove Number of HOME Units category, which isnt needed and is duplicative of AMI count categories
 # WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -111,17 +110,14 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
             with_ties = TRUE) %>% 
   distinct()
 
-#################################################################################
-#Question for Jesse
-#   How to view below output?
-
 #view cases where there are still multiple properties in the dataset
 WSHFC_cleaned %>% 
   unique() %>% 
   group_by(`Site Name`, Address) %>% 
   mutate(n = n()) %>% 
   filter(n > 1) %>% 
-  arrange(`Project Name`, `Site Name`, Address)
+  arrange(`Project Name`, `Site Name`, Address) %>%
+  view()
 
 #select only entry with latest expiration date, as there are still some properties with multiple entries and different expiration dates
 WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -140,12 +136,13 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
   distinct()
 
 #check to see if any duplicates
-WSHFC_Dups <- WSHFC_cleaned %>% 
+WSHFC_cleaned %>% 
   distinct() %>% 
   group_by(`Site Name`, Address) %>% 
   mutate(n = n()) %>% 
   filter(n > 1) %>% 
-  arrange(`Project Name`, `Site Name`, Address)
+  arrange(`Project Name`, `Site Name`, Address) %>%
+  view()
 
 #for entries where there are multiple properties with the same total restricted unit count but different other data, select record that seems correct
 WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -154,17 +151,17 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
   filter(!(`Project Name` == "Passage Point" & `Site Name` == "Passage Point" & `50%` == 0)) #select KC record, remove WSHFC record
 
 #check to see if any duplicates remaining - should be 0
-WSHFC_Dups <- WSHFC_cleaned %>% 
+WSHFC_cleaned %>% 
   distinct() %>% 
   group_by(`Site Name`, Address) %>% 
   mutate(n = n()) %>% 
   filter(n > 1) %>% 
-  arrange(`Project Name`, `Site Name`, Address)
+  arrange(`Project Name`, `Site Name`, Address) %>%
+  view()
 
 #rename columns and add empty columns for data we dont have
 WSHFC_cleaned <- WSHFC_cleaned %>% 
-  mutate(DataSourceName = "WSHFC",
-         AMI25 = as.numeric(NA),
+  mutate(AMI25 = as.numeric(NA),
          AMI75 = as.numeric(NA),
          AMI85 = as.numeric(NA),
          AMI90 = as.numeric(NA),
@@ -211,29 +208,10 @@ WSHFC_cleaned <- select_and_arrange_columns_function(WSHFC_cleaned)
 WSHFC_cleaned <- create_unique_linking_ID_function(WSHFC_cleaned,
                                                    "WSHFC")
 
-## 9) make sure files are all ready for joining --------------------------------------------------------------------
-
-#check that all column names are the same
-colnames(ARCH_cleaned) == colnames(RHA_cleaned)
-colnames(RHA_cleaned) == colnames(WSHFC_cleaned)
-colnames(WSHFC_cleaned) == colnames(SHA_cleaned)
-colnames(SHA_cleaned) == colnames(SOH_cleaned)
-colnames(SOH_cleaned) == colnames(KCHA_cleaned)
-
-
-
-#join all dfs together
-joined_IRD <- bind_rows(ARCH_cleaned,
-                        RHA_cleaned,
-                        WSHFC_cleaned,
-                        SHA_cleaned,
-                        SOH_cleaned,
-                        KCHA_cleaned)
-
 ## 10) save files --------------------------------------------------------------------
 
 #save N: drive cleaned files location filepath
-N_drive_cleaned_files_filepath <- "N:/PME/Homeless Housing and Services/Data Sets/Income Restricted Database/original_data_provider_files/2021/cleaned_files/"
+J_drive_cleaned_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2022_update/WSHFC/Cleaned Data/"
 
 #save cleaned files
-write_csv(WSHFC_cleaned, paste0(N_drive_cleaned_files_filepath, "WSHFC_2020_cleaned.csv"))
+write_csv(WSHFC_cleaned, paste0(J_drive_cleaned_files_filepath, "WSHFC_2020_cleaned.csv"))
