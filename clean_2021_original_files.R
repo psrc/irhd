@@ -18,68 +18,68 @@ original_WSHFC_raw <- read_xlsx(paste0(J_drive_raw_files_filepath, "PSRC Report_
 ## 2) create functions --------------------------------------------------------------------
 
 #create function to select and arrange columns needed for joining
-select_and_arrange_columns_function <- function(df){
-  df <- df %>% 
-    select(any_of(c("DataSourceName",
-                    "ProjectName",
-                    "PropertyName",
-                    "Address",
-                    "city",
-                    "Funder",
-                    "TotalUnits",
-                    "TotalRestrictedUnits",
-                    "AMI20",
-                    "AMI25",                    
-                    "AMI30",
-                    "AMI35",
-                    "AMI40",
-                    "AMI45",
-                    "AMI50",
-                    "AMI60",
-                    "AMI65",
-                    "AMI70",
-                    "AMI75",
-                    "AMI80",
-                    "AMI85",
-                    "AMI90",
-                    "AMI100",
-                    "MarketRate",
-                    "ManagerUnit",
-                    "Bedroom_0",
-                    "Bedroom_1",
-                    "Bedroom_2",
-                    "Bedroom_3",
-                    "Bedroom_4",
-                    "Bedroom_5",
-                    "Bedroom_Unknown",
-                    "GroupHomeOrBed",
-                    "PropertyFunderProgramName",
-                    "InServiceDate",
-                    "ExpirationYear",
-                    "Confidentiality",
-                    "ContactName",
-                    "ProjectSponsor",
-                    "Policy",
-                    "PopulationServed",
-                    "ProjectType",
-                    "Tenure",
-                    "Funder",
-                    "FundingSource")))
-}
+# select_and_arrange_columns_function <- function(df){
+#   df <- df %>% 
+#     select(any_of(c("DataSourceName",
+#                     "ProjectName",
+#                     "PropertyName",
+#                     "Address",
+#                     "city",
+#                     "Funder",
+#                     "TotalUnits",
+#                     "TotalRestrictedUnits",
+#                     "AMI20",
+#                     "AMI25",                    
+#                     "AMI30",
+#                     "AMI35",
+#                     "AMI40",
+#                     "AMI45",
+#                     "AMI50",
+#                     "AMI60",
+#                     "AMI65",
+#                     "AMI70",
+#                     "AMI75",
+#                     "AMI80",
+#                     "AMI85",
+#                     "AMI90",
+#                     "AMI100",
+#                     "MarketRate",
+#                     "ManagerUnit",
+#                     "Bedroom_0",
+#                     "Bedroom_1",
+#                     "Bedroom_2",
+#                     "Bedroom_3",
+#                     "Bedroom_4",
+#                     "Bedroom_5",
+#                     "Bedroom_Unknown",
+#                     "GroupHomeOrBed",
+#                     "PropertyFunderProgramName",
+#                     "InServiceDate",
+#                     "ExpirationYear",
+#                     "Confidentiality",
+#                     "ContactName",
+#                     "ProjectSponsor",
+#                     "Policy",
+#                     "PopulationServed",
+#                     "ProjectType",
+#                     "Tenure",
+#                     "Funder",
+#                     "FundingSource")))
+# }
 
 #create function to add unique linking ID that can be used for linking back to original, unedited data before we make manual changes to property names, project names, and addresses
+# 
+# create_unique_linking_ID_function <- function(df, funder_name){
+#   df <- df %>% 
+#     ungroup() %>% 
+#     mutate(unique_linking_ID = paste0(funder_name, "_", row_number())) %>% 
+#     select(unique_linking_ID,
+#            everything())
+# }
 
-create_unique_linking_ID_function <- function(df, funder_name){
-  df <- df %>% 
-    ungroup() %>% 
-    mutate(unique_linking_ID = paste0(funder_name, "_", row_number())) %>% 
-    select(unique_linking_ID,
-           everything())
-}
+## 3) clean WSHFC data --------------------------------------------------------------------
 
-## 6) clean WSHFC data --------------------------------------------------------------------
-
-#filter for just King County properties
+# ------- DATA FILTER #1 ------- filter by county, create/modify fields
 WSHFC_cleaned <- original_WSHFC_raw %>%
   filter(County == "Snohomish" | County == "Pierce" | County == "Kitsap")
 
@@ -94,7 +94,7 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
   group_by(`Site Name`, Address) %>% 
   mutate(Funder = paste(sort(unique(Funder)), collapse = ", "))
 
-#################################################################################
+###############
 #Home units included in AMI categories - Discuss with Carol - Ask WSHFC about duplications in HOME columns
 
 #remove Number of HOME Units category, which isnt needed and is duplicative of AMI count categories
@@ -102,7 +102,7 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
 #   select(-`Number of HOME Units`)
 
 
-#select only the entry with the largest total restricted unit count, as there are often multiple entries with different unit counts
+# ------- DATA FILTER #2 ------- select entry with the largest total restricted unit count
 WSHFC_cleaned <- WSHFC_cleaned %>% 
   group_by(`Site Name`, Address) %>% 
   slice_max(`Income & Rent Restricted Units`,
@@ -110,7 +110,7 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
             with_ties = TRUE) %>% 
   distinct()
 
-#view cases where there are still multiple properties in the dataset
+#check for duplicates
 WSHFC_cleaned %>% 
   unique() %>% 
   group_by(`Site Name`, Address) %>% 
@@ -119,7 +119,7 @@ WSHFC_cleaned %>%
   arrange(`Project Name`, `Site Name`, Address) %>%
   view()
 
-#select only entry with latest expiration date, as there are still some properties with multiple entries and different expiration dates
+# ------- DATA FILTER #3 ------- select only entry with latest expiration date
 WSHFC_cleaned <- WSHFC_cleaned %>% 
   group_by(`Site Name`, Address) %>% 
   slice_max(`Project Expiration Date`,
@@ -127,7 +127,16 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
             with_ties = TRUE) %>% 
   distinct()
 
-#select only entry with earliest in service date, as there are still some properties with multiple entries and different expiration dates
+#check for duplicates
+WSHFC_cleaned %>% 
+  unique() %>% 
+  group_by(`Site Name`, Address) %>% 
+  mutate(n = n()) %>% 
+  filter(n > 1) %>% 
+  arrange(`Project Name`, `Site Name`, Address) %>%
+  view()
+
+# ------- DATA FILTER #4 ------- select only entry with earliest in service date
 WSHFC_cleaned <- WSHFC_cleaned %>% 
   group_by(`Site Name`, Address) %>% 
   slice_min(`First Credit Year or C of O's`,
@@ -135,7 +144,7 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
             with_ties = TRUE) %>% 
   distinct()
 
-#check to see if any duplicates
+#check for duplicates
 WSHFC_cleaned %>% 
   distinct() %>% 
   group_by(`Site Name`, Address) %>% 
@@ -143,6 +152,13 @@ WSHFC_cleaned %>%
   filter(n > 1) %>% 
   arrange(`Project Name`, `Site Name`, Address) %>%
   view()
+
+
+
+
+
+
+
 
 #for entries where there are multiple properties with the same total restricted unit count but different other data, select record that seems correct
 WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -208,10 +224,10 @@ WSHFC_cleaned <- select_and_arrange_columns_function(WSHFC_cleaned)
 WSHFC_cleaned <- create_unique_linking_ID_function(WSHFC_cleaned,
                                                    "WSHFC")
 
-## 10) save files --------------------------------------------------------------------
+## 4) save files --------------------------------------------------------------------
 
 #save N: drive cleaned files location filepath
 J_drive_cleaned_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2022_update/WSHFC/Cleaned Data/"
 
 #save cleaned files
-write_csv(WSHFC_cleaned, paste0(J_drive_cleaned_files_filepath, "WSHFC_2020_cleaned.csv"))
+write_csv(WSHFC_cleaned, paste0(J_drive_cleaned_files_filepath, "WSHFC_2021_cleaned.csv"))
