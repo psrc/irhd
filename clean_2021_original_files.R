@@ -18,64 +18,67 @@ original_WSHFC_raw <- read_xlsx(paste0(J_drive_raw_files_filepath, "PSRC Report_
 ## 2) create functions --------------------------------------------------------------------
 
 #create function to select and arrange columns needed for joining
-# select_and_arrange_columns_function <- function(df){
-#   df <- df %>% 
-#     select(any_of(c("DataSourceName",
-#                     "ProjectName",
-#                     "PropertyName",
-#                     "Address",
-#                     "city",
-#                     "Funder",
-#                     "TotalUnits",
-#                     "TotalRestrictedUnits",
-#                     "AMI20",
-#                     "AMI25",                    
-#                     "AMI30",
-#                     "AMI35",
-#                     "AMI40",
-#                     "AMI45",
-#                     "AMI50",
-#                     "AMI60",
-#                     "AMI65",
-#                     "AMI70",
-#                     "AMI75",
-#                     "AMI80",
-#                     "AMI85",
-#                     "AMI90",
-#                     "AMI100",
-#                     "MarketRate",
-#                     "ManagerUnit",
-#                     "Bedroom_0",
-#                     "Bedroom_1",
-#                     "Bedroom_2",
-#                     "Bedroom_3",
-#                     "Bedroom_4",
-#                     "Bedroom_5",
-#                     "Bedroom_Unknown",
-#                     "GroupHomeOrBed",
-#                     "PropertyFunderProgramName",
-#                     "InServiceDate",
-#                     "ExpirationYear",
-#                     "Confidentiality",
-#                     "ContactName",
-#                     "ProjectSponsor",
-#                     "Policy",
-#                     "PopulationServed",
-#                     "ProjectType",
-#                     "Tenure",
-#                     "Funder",
-#                     "FundingSource")))
-# }
+select_and_arrange_columns_function <- function(df){
+  df <- df %>%
+    select(any_of(c("DataSourceName",
+                    "ProjectName",
+                    "PropertyName",
+                    "Address",
+                    "city",
+                    "Funder",
+                    "TotalUnits",
+                    "TotalRestrictedUnits",
+                    "AMI20",
+                    "AMI25",
+                    "AMI30",
+                    "AMI35",
+                    "AMI40",
+                    "AMI45",
+                    "AMI50",
+                    "AMI60",
+                    "AMI65",
+                    "AMI70",
+                    "AMI75",
+                    "AMI80",
+                    "AMI85",
+                    "AMI90",
+                    "AMI100",
+                    "MarketRate",
+                    "ManagerUnit",
+                    "Bedroom_0",
+                    "Bedroom_1",
+                    "Bedroom_2",
+                    "Bedroom_3",
+                    "Bedroom_4",
+                    "Bedroom_5",
+                    "Bedroom_Unknown",
+                    "GroupHomeOrBed",
+                    "HOMEcity",
+                    "HOMEcounty",
+                    "HOMEstate",
+                    "PropertyFunderProgramName",
+                    "InServiceDate",
+                    "ExpirationYear",
+                    "Confidentiality",
+                    "ContactName",
+                    "ProjectSponsor",
+                    "Policy",
+                    "PopulationServed",
+                    "ProjectType",
+                    "Tenure",
+                    "Funder",
+                    "FundingSource")))
+}
 
 #create function to add unique linking ID that can be used for linking back to original, unedited data before we make manual changes to property names, project names, and addresses
-# 
-# create_unique_linking_ID_function <- function(df, funder_name){
-#   df <- df %>% 
-#     ungroup() %>% 
-#     mutate(unique_linking_ID = paste0(funder_name, "_", row_number())) %>% 
-#     select(unique_linking_ID,
-#            everything())
-# }
+
+create_unique_linking_ID_function <- function(df, funder_name){
+  df <- df %>%
+    ungroup() %>%
+    mutate(unique_linking_ID = paste0(funder_name, "_", row_number())) %>%
+    select(unique_linking_ID,
+           everything())
+}
 
 ## 3) clean WSHFC data --------------------------------------------------------------------
 
@@ -116,8 +119,8 @@ WSHFC_cleaned %>%
   group_by(`Site Name`, Address) %>% 
   mutate(n = n()) %>% 
   filter(n > 1) %>% 
-  arrange(`Project Name`, `Site Name`, Address) %>%
-  view()
+  arrange(`Project Name`, `Site Name`, Address) # %>%
+#  view()
 
 # ------- DATA FILTER #3 ------- select only entry with latest expiration date
 WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -133,8 +136,8 @@ WSHFC_cleaned %>%
   group_by(`Site Name`, Address) %>% 
   mutate(n = n()) %>% 
   filter(n > 1) %>% 
-  arrange(`Project Name`, `Site Name`, Address) %>%
-  view()
+  arrange(`Project Name`, `Site Name`, Address)# %>%
+#  view()
 
 # ------- DATA FILTER #4 ------- select only entry with earliest in service date
 WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -150,21 +153,15 @@ WSHFC_cleaned %>%
   group_by(`Site Name`, Address) %>% 
   mutate(n = n()) %>% 
   filter(n > 1) %>% 
-  arrange(`Project Name`, `Site Name`, Address) %>%
-  view()
+  arrange(`Project Name`, `Site Name`, Address)# %>%
+#  view()
 
-
-
-
-
-
-
-
-#for entries where there are multiple properties with the same total restricted unit count but different other data, select record that seems correct
+# ------- DATA FILTER #4 ------- for entries where there are multiple properties with the same total restricted unit count but different other data, select record that seems correct
 WSHFC_cleaned <- WSHFC_cleaned %>% 
   distinct() %>% 
-  filter(!(`Project Name` == "Hirabayashi Place" & `Site Name` == "Hirabayashi Place" & `50%` == 57)) %>% #select SOH record, remove Commerce record
-  filter(!(`Project Name` == "Passage Point" & `Site Name` == "Passage Point" & `50%` == 0)) #select KC record, remove WSHFC record
+  filter(!(`Project Name` == "Annobee Apartments, The" & `Site Name` == "Annobee Apartments, The" & `80%` == 43)) %>% #remove this record, keep record with pop served & deeper affordability
+  filter(!(`Project Name` == "Catalina Apartments" & `Site Name` == "Catalina Apartments" & `40%` == 32)) %>% #remove this record, keep record with pop served & deeper affordability
+  filter(!(`Project Name` == "Maternity Shelter (Youth Emergency Shelter (YES) North)" & `Site Name` == "Youth Emergency Shelter (YES) North" & `50%` == 8)) #remove this record, keep record with deeper affordability
 
 #check to see if any duplicates remaining - should be 0
 WSHFC_cleaned %>% 
@@ -172,8 +169,8 @@ WSHFC_cleaned %>%
   group_by(`Site Name`, Address) %>% 
   mutate(n = n()) %>% 
   filter(n > 1) %>% 
-  arrange(`Project Name`, `Site Name`, Address) %>%
-  view()
+  arrange(`Project Name`, `Site Name`, Address)# %>%
+#  view()
 
 #rename columns and add empty columns for data we dont have
 WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -191,12 +188,12 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
          FundingSource = as.character(NA)) %>% 
   rename(ProjectName = `Project Name`,
          PropertyName = `Site Name`,
-         city = City,
+         City = City,
          TotalUnits = `Total Project Units`,
          TotalRestrictedUnits = `Income & Rent Restricted Units`,
          InServiceDate = `First Credit Year or C of O's`,
          ExpirationYear = `Project Expiration Date`,
-         AMI20 = `0.2`,
+         AMI20 = `20%`,
          AMI30 = `30%`,
          AMI35 = `35%`,
          AMI40 = `40%`,
@@ -213,9 +210,18 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
          Bedroom_5 = `5 BR`,
          Bedroom_Unknown = `Unknown`,
          GroupHomeOrBed = `GROUP HOME/BED`,
+         HOMEcity = `HOME City`,
+         HOMEcount = `HOME County`,
+         HOMEstate = `HOME State`,
          ContactName = `Property Management Org`,
          ProjectSponsor = `Contractor/Owner Org`,
          ProjectType = `Site Type`)
+
+#########################################################################
+# Question for Jesse:
+#   The following two functions may not be needed
+#       1. Removes fields I think we should keep (project key, site key, etc)
+#       2. Creates unique linking ID, not sure we need it? 
 
 #select only necessary columns and arrange columns
 WSHFC_cleaned <- select_and_arrange_columns_function(WSHFC_cleaned) 
