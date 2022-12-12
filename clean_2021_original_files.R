@@ -21,10 +21,14 @@ original_WSHFC_raw <- read_xlsx(paste0(J_drive_raw_files_filepath, "PSRC Report_
 select_and_arrange_columns_function <- function(df){
   df <- df %>%
     select(any_of(c("DataSourceName",
+                    "ProjectKey",
                     "ProjectName",
+                    "SiteKey",
                     "PropertyName",
                     "Address",
-                    "city",
+                    "City",
+                    "Zip",
+                    "County",
                     "Funder",
                     "TotalUnits",
                     "TotalRestrictedUnits",
@@ -63,10 +67,15 @@ select_and_arrange_columns_function <- function(df){
                     "ContactName",
                     "ProjectSponsor",
                     "Policy",
-                    "PopulationServed",
+                    "Elderly",
+                    "Persons with Disabilities",
+                    "Farmworker",
+                    "Homeless",
+                    "Large Household (+4 pp)",
+                    "Transitional",
+                    "Veterans",
                     "ProjectType",
                     "Tenure",
-                    "Funder",
                     "FundingSource")))
 }
 
@@ -170,7 +179,7 @@ WSHFC_cleaned %>%
   mutate(n = n()) %>% 
   filter(n > 1) %>% 
   arrange(`Project Name`, `Site Name`, Address)# %>%
-#  view()
+ # view()
 
 #rename columns and add empty columns for data we dont have
 WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -211,7 +220,7 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
          Bedroom_Unknown = `Unknown`,
          GroupHomeOrBed = `GROUP HOME/BED`,
          HOMEcity = `HOME City`,
-         HOMEcount = `HOME County`,
+         HOMEcounty = `HOME County`,
          HOMEstate = `HOME State`,
          ContactName = `Property Management Org`,
          ProjectSponsor = `Contractor/Owner Org`,
