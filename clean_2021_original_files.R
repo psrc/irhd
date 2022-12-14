@@ -162,8 +162,8 @@ WSHFC_cleaned %>%
   group_by(`Site Name`, Address) %>% 
   mutate(n = n()) %>% 
   filter(n > 1) %>% 
-  arrange(`Project Name`, `Site Name`, Address)# %>%
-#  view()
+  arrange(`Project Name`, `Site Name`, Address) %>%
+  view()
 
 # ------- DATA FILTER #4 ------- for entries where there are multiple properties with the same total restricted unit count but different other data, select record that seems correct
 WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -225,12 +225,6 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
          ContactName = `Property Management Org`,
          ProjectSponsor = `Contractor/Owner Org`,
          ProjectType = `Site Type`)
-
-#########################################################################
-# Question for Jesse:
-#   The following two functions may not be needed
-#       1. Removes fields I think we should keep (project key, site key, etc)
-#       2. Creates unique linking ID, not sure we need it? 
 
 #select only necessary columns and arrange columns
 WSHFC_cleaned <- select_and_arrange_columns_function(WSHFC_cleaned) 
