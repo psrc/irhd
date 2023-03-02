@@ -65,7 +65,6 @@ select_and_arrange_columns_function <- function(df){
                     "HOMEcity",
                     "HOMEcounty",
                     "HOMEstate",
-                    "PropertyFunderProgramName",
                     "Confidentiality",
                     "ContactName",
                     "ProjectSponsor",
@@ -78,8 +77,7 @@ select_and_arrange_columns_function <- function(df){
                     "Transitional",
                     "Veterans",
                     "FundingSource",
-                    "Tenure",
-                    "FundingSource")))
+                    "Tenure")))
 }
 
 ## 3) clean WSHFC data --------------------------------------------------------------------
@@ -178,7 +176,6 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
          AMI100 = as.numeric(NA),
          MarketRate = as.numeric(NA),
          ManagerUnit = as.numeric(NA),
-         PropertyFunderProgramName = as.character(NA),
          Confidentiality = as.character(NA),
          Policy = as.character(NA),
          Tenure = as.character(NA),
