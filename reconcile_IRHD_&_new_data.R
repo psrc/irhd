@@ -55,7 +55,14 @@ IRHD22raw <- IRHD22raw[, c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
 
 
 
-## 5) Compare records found in both WSHFC and IRHD (matched on PropertyID) --------------------------------------------------------------------
+## 5) Locate records found in both WSHFC and IRHD (matched on PropertyID) --------------------------------------------------------------------
+
+
+
+
+
+
+## 6) Update fields in IRHD for records found in both WSHFC and IRHD (matched on PropertyID) --------------------------------------------------------------------
 
 
 
