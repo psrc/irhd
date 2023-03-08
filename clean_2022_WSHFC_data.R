@@ -2,7 +2,7 @@
 # Title: 2022 update to IRHD, Cleaning WSHFC data and incorporating into existing database
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-11-30
-# Last Updated: 2023-03-02
+# Last Updated: 2023-03-08
 #################################################################################
 
 ## load packages-----------------------------------------------------------------
@@ -91,14 +91,6 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
   group_by(`Site Name`, Address) %>% 
   mutate(Funder = paste(sort(unique(Funder)), collapse = ", "))
 
-###############
-#Home units included in AMI categories - Discuss with Carol - Ask WSHFC about duplications in HOME columns
-
-#remove Number of HOME Units category, which isnt needed and is duplicative of AMI count categories
-# WSHFC_cleaned <- WSHFC_cleaned %>% 
-#   select(-`Number of HOME Units`)
-
-
 # ------- DATA FILTER #2 ------- select entry with the largest total restricted unit count
 WSHFC_cleaned <- WSHFC_cleaned %>% 
   group_by(`Site Name`, Address) %>% 
@@ -165,6 +157,11 @@ WSHFC_cleaned %>%
   filter(n > 1) %>% 
   arrange(`Project Name`, `Site Name`, Address) %>%
   view()
+
+# ------- DATA FILTER #5 ------- Remove any records with an InServiceDate of 2022, this update is through 2021
+
+WSHFC_cleaned <- WSHFC_cleaned %>%
+  filter(`First Credit Year or C of O's` < "2022")
 
 #rename columns and add empty columns for data we dont have
 WSHFC_cleaned <- WSHFC_cleaned %>% 

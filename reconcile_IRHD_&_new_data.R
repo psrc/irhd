@@ -22,17 +22,16 @@ IRHD22raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2022_update/Data/1 Work
 WSHFC22raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2022_update/WSHFC/Cleaned Data/WSHFC_2022_cleaned.csv")
 
 #load cleaned KC data that has portfolios as of end of 2021
-# KC22raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2022_update/Review Files - Recieved/")
+# KC22raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2022_update/Review Files - Received/")
 
 
-## 2) clean up HOME data in IRHD. Rename existing HOME field, add new fields --------------------------------------------------------------------
+## 2) clean up HOME data in IRHD. Add new fields --------------------------------------------------------------------
 
-# Create three new HOME fields. Rename existing HOME field
+# Create three new HOME fields
 IRHD22raw <- IRHD22raw %>%
   mutate(HOMEcity = as.character(NA),
          HOMEcounty = as.character(NA),
-         HOMEstate = as.character(NA)) %>% 
-  rename(HOMEtotal = `HOME`)
+         HOMEstate = as.character(NA))
 
 #reorder fields
 IRHD22raw <- IRHD22raw[, c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
@@ -41,28 +40,26 @@ IRHD22raw <- IRHD22raw[, c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
                            61,62,63,64,65,66,67,68,69,78,79,80,70,71,72,73,74,75,76,77)]
 
 
-## 3) Locate records in WSHFC not in IRHD (matched on PropertyID) --------------------------------------------------------------------
+## 3) Locate records in WSHFC not in IRHD --------------------------------------------------------------------
+
+newWSHFC22 <- anti_join(WSHFC22raw, IRHD22raw, by = "PropertyID")
+
+
+## 4) Locate records in IRHD not in WSHFC --------------------------------------------------------------------
+
+nomatchIRHD22 <- anti_join(IRHD22raw %>% filter(County == "Pierce" | County == "Snohomish" | County == "Kitsap") %>%
+                                         filter(DataSource == "WSHFC"),
+                           WSHFC22raw, by = "PropertyID")
+
+
+## 5) Locate records found in both WSHFC and IRHD (matched on PropertyNAME) --------------------------------------------------------------------
 
 
 
 
 
 
-## 4) Locate records in IRHD not in WSHFC (matched on PropertyID) --------------------------------------------------------------------
-
-
-
-
-
-
-## 5) Locate records found in both WSHFC and IRHD (matched on PropertyID) --------------------------------------------------------------------
-
-
-
-
-
-
-## 6) Update fields in IRHD for records found in both WSHFC and IRHD (matched on PropertyID) --------------------------------------------------------------------
+## 6) Update fields in IRHD for records found in both WSHFC and IRHD (matched on PropertyNAME) --------------------------------------------------------------------
 
 
 
