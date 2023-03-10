@@ -32,7 +32,7 @@ select_and_arrange_columns_function <- function(df){
                     "ExpirationDate",
                     "Address",
                     "City",
-                    "Zip",
+                    "ZIP",
                     "County",
                     "TotalUnits",
                     "TotalRestrictedUnits",
@@ -69,14 +69,14 @@ select_and_arrange_columns_function <- function(df){
                     "ContactName",
                     "ProjectSponsor",
                     "Policy",
-                    "Elderly",
-                    "Persons with Disabilities",
+                    "Senior",
+                    "Disabled",
                     "Farmworker",
                     "Homeless",
                     "Large Household (+4 pp)",
                     "Transitional",
                     "Veterans",
-                    "FundingSource",
+                    "FundingSources",
                     "Tenure")))
 }
 
@@ -89,7 +89,7 @@ WSHFC_cleaned <- original_WSHFC_raw %>%
 #create grouped funder column
 WSHFC_cleaned <- WSHFC_cleaned %>% 
   group_by(`Site Name`, Address) %>% 
-  mutate(Funder = paste(sort(unique(Funder)), collapse = ", "))
+  mutate(Funder = paste(sort(unique(Funder)), collapse = ","))
 
 # ------- DATA FILTER #2 ------- select entry with the largest total restricted unit count
 WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -175,8 +175,7 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
          ManagerUnit = as.numeric(NA),
          Confidentiality = as.character(NA),
          Policy = as.character(NA),
-         Tenure = as.character(NA),
-         FundingSource = as.character(NA)) %>% 
+         Tenure = as.character(NA)) %>% 
   rename(ProjectID = `ProjectKey`,
          ProjectName = `Project Name`,
          PropertyID = `SiteKey`,
@@ -211,7 +210,10 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
          FundingSources = `Funder`,
          ExpirationDate = `Project Expiration Date`,
          LargeHousehold4plus = `Large Household (4+ pp)`,
-         Site_Type = `Site Type`)
+         Site_Type = `Site Type`,
+         Senior = `Elderly`,
+         Disabled = `Persons with Disabilities`,
+         ZIP = `Zip`)
 
 #select only necessary columns and arrange columns
 WSHFC_cleaned <- select_and_arrange_columns_function(WSHFC_cleaned) 
