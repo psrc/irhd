@@ -123,7 +123,7 @@ long_IRHD <- IRHD22raw %>%
                values_transform = list(variable_value=as.character))
 
 # Remove some fields that we don't need here
-long_IRHD <- long_IRHD[c(5,30,31)]
+long_IRHD <- long_IRHD[c(5,25,26)]
 
 # Pivot the mocked-up data to make it long and thin
 long_WSHFC <- WSHFC22raw %>%
