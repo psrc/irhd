@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-03-09
+# Last Updated: 2023-03-14
 #################################################################################
 
 
@@ -59,8 +59,9 @@ IRHD22raw  <- IRHD22raw %>% filter(County == "Pierce" | County == "Snohomish" | 
 newWSHFC22 <- anti_join(WSHFC22raw, IRHD22raw, by = "PropertyID")
 
 ## 4) Locate records in IRHD not in WSHFC (No longer in WSHFC data, but once were?) --------------------------------------------------------------------
-
-nomatchIRHD22 <- anti_join(IRHD22raw %>% filter(DataSource == "WSHFC"),
+# Compare WSHFC 2022 to 2021, to find properties that expired
+# spot check individual records
+nomatchIRHD22 <- anti_join(IRHD22raw, #%>% filter(DataSource == "WSHFC"),
                            WSHFC22raw, by = "PropertyID")
 
 # ## 5) Update fields in IRHD for records found in both WSHFC and IRHD --------------------------------------------------------------------
@@ -186,6 +187,7 @@ long_WSHFC <- WSHFC22raw %>%
 long_WSHFC <- long_WSHFC[c(2,4,5)]
 
 # Compare the two data sets in long form to identify values that have been changed
+# string_dist function - new field to sort fields that are quite different
 long_compare <- long_IRHD %>%
   inner_join(long_WSHFC, by=c('PropertyID', 'variable_class')) %>%
   filter(variable_value.x != variable_value.y)
