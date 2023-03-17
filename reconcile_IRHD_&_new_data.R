@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-03-14
+# Last Updated: 2023-03-16
 #################################################################################
 
 
@@ -10,8 +10,6 @@
 
 library(tidyverse)
 library(readxl)
-#library(janitor)
-
 
 ## 1) load data ---------------------------------------------------------------------
 
@@ -192,3 +190,12 @@ long_compare <- long_IRHD %>%
   inner_join(long_WSHFC, by=c('PropertyID', 'variable_class')) %>%
   filter(variable_value.x != variable_value.y)
 
+# Use StringDist to see how different the new data is from existing
+install.packages("fuzzyjoin")
+library(fuzzyjoin)
+
+long_compare <- stringdist_left_join(long_IRHD, long_WSHFC, by="PropertyID", method = "jw", distance_col="string")
+
+
+library(stringdist)
+long_compare$string <- stringdist(long_compare$variable_value.x, long_compare$variable_value.y, method='jw', p=0)
