@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-03-16
+# Last Updated: 2023-04-04
 #################################################################################
 
 
@@ -14,58 +14,58 @@ library(readxl)
 ## 1) load data ---------------------------------------------------------------------
 
 #load cleaned 2021 IRHD that has portfolios as of end of 2021
-IRHD21raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/1 Working Files/2021 IRHD v3 - ready4reconcilescript.csv")
+IRHD_raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/1 Working Files/2021 IRHD v3 - ready4reconcilescript.csv")
 
 #load cleaned WSHFC data that has portfolios as of end of 2021
-WSHFC22raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv")
+WSHFC_raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv")
 
 #load cleaned KC data that has portfolios as of end of 2021
-# KC22raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2022_update/Review Files - Received/")
+# KC21raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/")
 
 
 ## 2) clean up fields in IRHD, limit to 3 counties, add/remove fields --------------------------------------------------------------------
 
 # Create three new HOME fields
-IRHD22raw <- IRHD22raw %>%
+IRHD_raw <- IRHD_raw %>%
   mutate(HOMEcity = as.character(NA),
          HOMEcounty = as.character(NA),
          HOMEstate = as.character(NA))
 
 # reorder fields - puts new HOME fields next to the existing HOME field
-IRHD22raw <- IRHD22raw[, c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
+IRHD_raw <- IRHD_raw[, c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
                            21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
                            41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,
                            61,62,63,64,65,66,67,68,69,78,79,80,70,71,72,73,74,75,76,77)]
 
 # Remove summary AMI fields (we can do this all via a script from now on)
 
-IRHD22raw <- IRHD22raw[, -c(40,41,42,43,44)]
+IRHD_raw <- IRHD_raw[, -c(40,41,42,43,44)]
 
 # Clean up various fields for matching with WSHFC
-IRHD22raw$Manager[IRHD22raw$Manager == 'HASCO'] <- 'Snohomish County Housing Authority'
-IRHD22raw$Owner[IRHD22raw$Owner == 'HASCO'] <- 'Snohomish County Housing Authority'
+IRHD_raw$Manager[IRHD_raw$Manager == 'HASCO'] <- 'Snohomish County Housing Authority'
+IRHD_raw$Owner[IRHD_raw$Owner == 'HASCO'] <- 'Snohomish County Housing Authority'
 
-IRHD22raw$Manager[IRHD22raw$Manager == 'Low Income Housing Institute'] <- 'Low Income Housing Institute (LIHI)'
-IRHD22raw$Owner[IRHD22raw$Owner == 'Low Income Housing Institute'] <- 'Low Income Housing Institute (LIHI)'
+IRHD_raw$Manager[IRHD_raw$Manager == 'Low Income Housing Institute'] <- 'Low Income Housing Institute (LIHI)'
+IRHD_raw$Owner[IRHD_raw$Owner == 'Low Income Housing Institute'] <- 'Low Income Housing Institute (LIHI)'
 
 # Limit to just Pierce, Snohomish, and Kitsap
-IRHD22raw  <- IRHD22raw %>% filter(County == "Pierce" | County == "Snohomish" | County == "Kitsap")
+IRHD_raw  <- IRHD_raw %>% filter(County == "Pierce" | County == "Snohomish" | County == "Kitsap")
 
 
 ## 3) Locate records in WSHFC not in IRHD (likely new records/properties) --------------------------------------------------------------------
 
-newWSHFC22 <- anti_join(WSHFC22raw, IRHD22raw, by = "PropertyID")
+newWSHFC <- anti_join(WSHFC_raw, IRHD_raw, by = "PropertyID")
 
 ## 4) Locate records in IRHD not in WSHFC (No longer in WSHFC data, but once were?) --------------------------------------------------------------------
-# Compare WSHFC 2022 to 2021, to find properties that expired
+# Compare WSHFC 2021 to 2020, to find properties that expired
 # spot check individual records
-nomatchIRHD22 <- anti_join(IRHD22raw, #%>% filter(DataSource == "WSHFC"),
-                           WSHFC22raw, by = "PropertyID")
+nomatchIRHD <- anti_join(IRHD_raw, WSHFC_raw, by = "PropertyID")
+nomatchIRHD <- nomatchIRHD %>% drop_na(PropertyID)
 
 # ## 5) Update fields in IRHD for records found in both WSHFC and IRHD --------------------------------------------------------------------
 
-# Pivot the IRHD22raw data to make it long and thin
-long_IRHD <- IRHD22raw %>%
+# Pivot the IRHD_raw data to make it long and thin
+long_IRHD <- IRHD_raw %>%
   pivot_longer(c('ProjectID',
                  'ProjectName',
                  'PropertyName',
@@ -125,7 +125,7 @@ long_IRHD <- IRHD22raw %>%
 long_IRHD <- long_IRHD[c(5,25,26)]
 
 # Pivot the mocked-up data to make it long and thin
-long_WSHFC <- WSHFC22raw %>%
+long_WSHFC <- WSHFC_raw %>%
   pivot_longer(c('ProjectID',
                  'ProjectName',
                  'PropertyName',
