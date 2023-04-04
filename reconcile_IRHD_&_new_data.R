@@ -13,11 +13,11 @@ library(readxl)
 
 ## 1) load data ---------------------------------------------------------------------
 
-#load cleaned 2022 IRHD that has portfolios as of end of 2021
-IRHD22raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2022_update/Data/1 Working Files/2022 IRHD v3 - ready4reconcilescript.csv")
+#load cleaned 2021 IRHD that has portfolios as of end of 2021
+IRHD21raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/1 Working Files/2021 IRHD v3 - ready4reconcilescript.csv")
 
 #load cleaned WSHFC data that has portfolios as of end of 2021
-WSHFC22raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2022_update/WSHFC/Cleaned Data/WSHFC_2022_cleaned.csv")
+WSHFC22raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv")
 
 #load cleaned KC data that has portfolios as of end of 2021
 # KC22raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2022_update/Review Files - Received/")

@@ -1,5 +1,5 @@
 #################################################################################
-# Title: 2022 update to IRHD, Cleaning WSHFC data and incorporating into existing database
+# Title: 2021 IRHD, Cleaning WSHFC data and incorporating into existing database
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-11-30
 # Last Updated: 2023-03-08
@@ -12,7 +12,7 @@ library(janitor)
 
 ## 1) load data ---------------------------------------------------------------------
 
-J_drive_raw_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2022_update/WSHFC/Raw Data/"
+J_drive_raw_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Raw Data/"
 
 original_WSHFC_raw <- read_xlsx(paste0(J_drive_raw_files_filepath, "PSRC Report_WSHFC_12-2021.xlsx"))
 
@@ -224,7 +224,7 @@ WSHFC_cleaned$DataSource = "WSHFC"
 ## 4) save files --------------------------------------------------------------------
 
 #save N: drive cleaned files location filepath
-J_drive_cleaned_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2022_update/WSHFC/Cleaned Data/"
+J_drive_cleaned_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/"
 
 #save cleaned files
-write_csv(WSHFC_cleaned, paste0(J_drive_cleaned_files_filepath, "WSHFC_2022_cleaned.csv"))
+write_csv(WSHFC_cleaned, paste0(J_drive_cleaned_files_filepath, "WSHFC_2021_cleaned.csv"))
