@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-04-04
+# Last Updated: 2023-04-06
 #################################################################################
 
 
@@ -57,7 +57,7 @@ IRHD_raw  <- IRHD_raw %>% filter(County == "Pierce" | County == "Snohomish" | Co
 newWSHFC <- anti_join(WSHFC_raw, IRHD_raw, by = "PropertyID")
 
 ## 4) Locate records in IRHD not in WSHFC (No longer in WSHFC data, but once were?) --------------------------------------------------------------------
-# Compare WSHFC 2021 to 2020, to find properties that expired
+# Compare WSHFC 2021 to 2020, to find properties that expired. Ask WSHFC about length of funding
 # spot check individual records
 nomatchIRHD <- anti_join(IRHD_raw, WSHFC_raw, by = "PropertyID")
 nomatchIRHD <- nomatchIRHD %>% drop_na(PropertyID)
@@ -191,11 +191,5 @@ long_compare <- long_IRHD %>%
   filter(variable_value.x != variable_value.y)
 
 # Use StringDist to see how different the new data is from existing
-install.packages("fuzzyjoin")
-library(fuzzyjoin)
-
-long_compare <- stringdist_left_join(long_IRHD, long_WSHFC, by="PropertyID", method = "jw", distance_col="string")
-
-
 library(stringdist)
 long_compare$string <- stringdist(long_compare$variable_value.x, long_compare$variable_value.y, method='jw', p=0)
