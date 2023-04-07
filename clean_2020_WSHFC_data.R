@@ -1,7 +1,7 @@
 #################################################################################
-# Title: 2021 IRHD, Cleaning WSHFC data and incorporating into existing database
-# Author: Eric Clute (with assistance from Jesse Warren, King County)
-# Date created: 2022-11-30
+# Title: 2020 IRHD, Cleaning WSHFC data
+# Author: Eric Clute
+# Date created: 2023-04-06
 # Last Updated: 2023-04-06
 #################################################################################
 
@@ -12,9 +12,9 @@ library(janitor)
 
 ## 1) load data ---------------------------------------------------------------------
 
-J_drive_raw_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Raw Data/"
+J_drive_raw_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2020 vintage/Updates/"
 
-original_WSHFC_raw <- read_xlsx(paste0(J_drive_raw_files_filepath, "PSRC Report_WSHFC_12-2021.xlsx"))
+original_WSHFC_raw <- read_xlsx(paste0(J_drive_raw_files_filepath, "PSRC WBARS Report_12-31-2020.xlsx"))
 
 ## 2) create functions --------------------------------------------------------------------
 
@@ -62,9 +62,7 @@ select_and_arrange_columns_function <- function(df){
                     "Bedroom_Unknown",
                     "BedCount",
                     "Site_Type",
-                    "HOMEcity",
-                    "HOMEcounty",
-                    "HOMEstate",
+                    "HOME",
                     "Confidentiality",
                     "ContactName",
                     "ProjectSponsor",
@@ -105,8 +103,8 @@ WSHFC_cleaned %>%
   group_by(`Site Name`, Address) %>% 
   mutate(n = n()) %>% 
   filter(n > 1) %>% 
-  arrange(`Project Name`, `Site Name`, Address) # %>%
-#  view()
+  arrange(`Project Name`, `Site Name`, Address) %>%
+  view()
 
 # ------- DATA FILTER #3 ------- select only entry with latest expiration date
 WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -122,8 +120,8 @@ WSHFC_cleaned %>%
   group_by(`Site Name`, Address) %>% 
   mutate(n = n()) %>% 
   filter(n > 1) %>% 
-  arrange(`Project Name`, `Site Name`, Address)# %>%
-#  view()
+  arrange(`Project Name`, `Site Name`, Address) %>%
+  view()
 
 # ------- DATA FILTER #4 ------- select only entry with earliest in service date
 WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -139,8 +137,8 @@ WSHFC_cleaned %>%
   group_by(`Site Name`, Address) %>% 
   mutate(n = n()) %>% 
   filter(n > 1) %>% 
-  arrange(`Project Name`, `Site Name`, Address)# %>%
- # view()
+  arrange(`Project Name`, `Site Name`, Address) %>%
+  view()
 
 # ------- DATA FILTER #4 ------- for entries where there are multiple properties with the same total restricted unit count but different other data, select record that seems correct
 WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -158,10 +156,12 @@ WSHFC_cleaned %>%
   arrange(`Project Name`, `Site Name`, Address) %>%
   view()
 
-# ------- DATA FILTER #5 ------- Remove any records with an InServiceDate of 2022, this update is through 2021
+# ------- DATA FILTER #5 ------- Remove any records with an InServiceDate of 2021, this update is through 2020
 
 WSHFC_cleaned <- WSHFC_cleaned %>%
-  filter(`First Credit Year or C of O's` < "2022")
+  filter(`First Credit Year or C of O's` < "2021")
+
+WSHFC_cleaned <- rename(WSHFC_cleaned, `20%` = `0.2`)
 
 #rename columns and add empty columns for data we dont have
 WSHFC_cleaned <- WSHFC_cleaned %>% 
@@ -204,9 +204,7 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
          Bedroom_5 = `5 BR`,
          Bedroom_Unknown = `Unknown`,
          BedCount = `GROUP HOME/BED`,
-         HOMEcity = `HOME City`,
-         HOMEcounty = `HOME County`,
-         HOMEstate = `HOME State`,
+         HOME = `Number of HOME Units`,
          FundingSources = `Funder`,
          ExpirationDate = `Project Expiration Date`,
          LargeHousehold4plus = `Large Household (4+ pp)`,
@@ -227,4 +225,4 @@ WSHFC_cleaned$DataSource = "WSHFC"
 J_drive_cleaned_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/"
 
 #save cleaned files
-write_csv(WSHFC_cleaned, paste0(J_drive_cleaned_files_filepath, "WSHFC_2021_cleaned.csv"))
+write_csv(WSHFC_cleaned, paste0(J_drive_cleaned_files_filepath, "WSHFC_2020_cleaned.csv"))
