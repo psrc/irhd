@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-04-07
+# Last Updated: 2023-04-11
 #################################################################################
 
 
@@ -60,6 +60,9 @@ newWSHFC <- anti_join(WSHFC_raw, IRHD_raw, by = "PropertyID")
 
 nomatchIRHD <- anti_join(IRHD_raw, WSHFC_raw, by = "PropertyID")
 nomatchIRHD <- nomatchIRHD %>% drop_na(PropertyID)
+
+# setwd("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Raw Data")
+# write.csv(nomatchIRHD, "nomatchIRHD.csv", row.names=FALSE)
 
 # ## 5) Update fields in IRHD for records found in both WSHFC and IRHD --------------------------------------------------------------------
 
