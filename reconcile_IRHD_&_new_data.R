@@ -2,13 +2,14 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-04-11
+# Last Updated: 2023-04-13
 #################################################################################
 
 
 ## load packages-----------------------------------------------------------------
 
 library(tidyverse)
+library(tidyr)
 library(readxl)
 
 ## 1) load data ---------------------------------------------------------------------
@@ -64,7 +65,7 @@ nomatchIRHD <- nomatchIRHD %>% drop_na(PropertyID)
 # setwd("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Raw Data")
 # write.csv(nomatchIRHD, "nomatchIRHD.csv", row.names=FALSE)
 
-# ## 5) Update fields in IRHD for records found in both WSHFC and IRHD --------------------------------------------------------------------
+## 5) Identify matched records in IRHD and WSHFC --------------------------------------------------------------------
 
 # Pivot the IRHD_raw data to make it long and thin
 long_IRHD <- IRHD_raw %>%
@@ -187,11 +188,16 @@ long_WSHFC <- WSHFC_raw %>%
 long_WSHFC <- long_WSHFC[c(2,4,5)]
 
 # Compare the two data sets in long form to identify values that have been changed
-# ******** NEEDS EDITS - rows with NA's are not included in the join. WSHFC data includes expiration dates, we need them ********
 long_compare <- long_IRHD %>%
   inner_join(long_WSHFC, by=c('PropertyID', 'variable_class')) %>%
-  filter(variable_value.x != variable_value.y)
+  mutate("match" = ifelse(mapply(identical, variable_value.x, variable_value.y), "YES", "NO")) %>%
+  filter(match == "NO") %>%
+  drop_na(variable_value.y)
 
-# Use StringDist to see how different the new data is from existing
-library(stringdist)
-long_compare$string <- stringdist(long_compare$variable_value.x, long_compare$variable_value.y, method='jw', p=0)
+## 6) Identify which fields will be updated with new WSHFC data, which keep existing data --------------------------------------------------------------------
+
+## This section under development - is another approach better??
+
+# Blanks in the IRHD will are to be filled with WSHFC data
+long_compare <- long_compare %>%
+  mutate("select" = ifelse(is.na(variable_value.x), "y", ""))
