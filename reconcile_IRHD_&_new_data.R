@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-04-13
+# Last Updated: 2023-04-14
 #################################################################################
 
 
@@ -82,30 +82,10 @@ long_IRHD <- IRHD_raw %>%
                  'County',
                  'TotalUnits',
                  'TotalRestrictedUnits',
-                 'AMI20',
-                 'AMI25',
-                 'AMI30',
-                 'AMI35',
-                 'AMI40',
-                 'AMI45',
-                 'AMI50',
-                 'AMI60',
-                 'AMI65',
-                 'AMI70',
-                 'AMI75',
-                 'AMI80',
-                 'AMI85',
-                 'AMI90',
-                 'AMI100',
+                 'AMI20','AMI25','AMI30','AMI35','AMI40','AMI45','AMI50','AMI60','AMI65','AMI70','AMI75','AMI80','AMI85','AMI90','AMI100',
                  'MarketRate',
                  'ManagerUnit',
-                 'Bedroom_0',
-                 'Bedroom_1',
-                 'Bedroom_2',
-                 'Bedroom_3',
-                 'Bedroom_4',
-                 'Bedroom_5',
-                 'Bedroom_Unknown',
+                 'Bedroom_0','Bedroom_1','Bedroom_2','Bedroom_3','Bedroom_4','Bedroom_5','Bedroom_Unknown',
                  'BedCount',
                  'Site_Type',
                  'HOMEcity',
@@ -142,30 +122,10 @@ long_WSHFC <- WSHFC_raw %>%
                  'County',
                  'TotalUnits',
                  'TotalRestrictedUnits',
-                 'AMI20',
-                 'AMI25',
-                 'AMI30',
-                 'AMI35',
-                 'AMI40',
-                 'AMI45',
-                 'AMI50',
-                 'AMI60',
-                 'AMI65',
-                 'AMI70',
-                 'AMI75',
-                 'AMI80',
-                 'AMI85',
-                 'AMI90',
-                 'AMI100',
+                 'AMI20','AMI25','AMI30','AMI35','AMI40','AMI45','AMI50','AMI60','AMI65','AMI70','AMI75','AMI80','AMI85','AMI90','AMI100',
                  'MarketRate',
                  'ManagerUnit',
-                 'Bedroom_0',
-                 'Bedroom_1',
-                 'Bedroom_2',
-                 'Bedroom_3',
-                 'Bedroom_4',
-                 'Bedroom_5',
-                 'Bedroom_Unknown',
+                 'Bedroom_0','Bedroom_1','Bedroom_2','Bedroom_3','Bedroom_4','Bedroom_5','Bedroom_Unknown',
                  'BedCount',
                  'Site_Type',
                  'HOMEcity',
@@ -194,10 +154,127 @@ long_compare <- long_IRHD %>%
   filter(match == "NO") %>%
   drop_na(variable_value.y)
 
-## 6) Identify which fields will be updated with new WSHFC data, which keep existing data --------------------------------------------------------------------
+## 6) Identify which rows will be updated with new WSHFC data, or keep existing data --------------------------------------------------------------------
 
-## This section under development - is another approach better??
+# Create field to indicate which variable to use
+long_compare$select <- ""
 
-# Blanks in the IRHD will are to be filled with WSHFC data
-long_compare <- long_compare %>%
-  mutate("select" = ifelse(is.na(variable_value.x), "y", ""))
+# Subset 1) select records with no data in the IRHD - we will take new data from WSHFC
+subset1 <- long_compare %>% subset(is.na(variable_value.x), select = c(PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset1$select <- "y"
+long_compare <- long_compare %>% na.omit(long_compare$variable_value.x) # remove from long_compare
+
+# Subset 2) Below fields - select WHSFC data
+subset2 <- long_compare %>% subset((variable_class == "InServiceDate" |
+                                    variable_class == "Manager"|
+                                    variable_class == "Owner"|
+                                    variable_class == "ProjectID"|
+                                    variable_class == "Disabled"|
+                                    variable_class == "Homeless"|
+                                    variable_class == "Senior"|
+                                    variable_class == "BedCount"|  
+                                    variable_class == "PropertyName"|
+                                    variable_class == "Site_Type"|
+                                    variable_class == "FundingSources"|
+                                    variable_class == "HOMEcity"|
+                                    variable_class == "HOMEcounty"|
+                                    variable_class == "HOMEstate"|
+                                    variable_class == "ProjectName"), select = c(PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset2$select <- "y"
+long_compare <- long_compare [!(long_compare$variable_class == "InServiceDate" |
+                                long_compare$variable_class == "Manager"|
+                                long_compare$variable_class == "Owner"|
+                                long_compare$variable_class == "ProjectID"|
+                                long_compare$variable_class == "Disabled"|
+                                long_compare$variable_class == "Homeless"|
+                                long_compare$variable_class == "Senior"|
+                                long_compare$variable_class == "BedCount"|
+                                long_compare$variable_class == "PropertyName"|
+                                long_compare$variable_class == "Site_Type"|
+                                long_compare$variable_class == "FundingSources"|
+                                long_compare$variable_class == "HOMEcity"|
+                                long_compare$variable_class == "HOMEcounty"|
+                                long_compare$variable_class == "HOMEstate"|
+                                long_compare$variable_class == "ProjectName"),] # remove from long_compare
+
+# Subset 3) select addresses that have "multiple" in the field - use IRHD address
+subset3 <- long_compare %>% subset(str_detect(long_compare$variable_value.y, str_c("Mu")), select = c(PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset3$select <- "x"
+long_compare <- long_compare [!(str_detect(long_compare$variable_value.y, str_c("Mu"))),] # remove from long_compare
+
+# Subset 4) select all AMI/Unit count/Bedroom size data, identify small numeric changes
+subset4 <- long_compare %>% subset((variable_class == "TotalUnits" |
+                                    variable_class == "TotalRestrictedUnits"|
+                                    variable_class == "AMI20"|
+                                    variable_class == "AMI25"|
+                                    variable_class == "AMI30"|
+                                    variable_class == "AMI35"|
+                                    variable_class == "AMI40"|
+                                    variable_class == "AMI45"|
+                                    variable_class == "AMI50"|
+                                    variable_class == "AMI60"|
+                                    variable_class == "AMI65"|
+                                    variable_class == "AMI70"|
+                                    variable_class == "AMI75"|
+                                    variable_class == "AMI80"|
+                                    variable_class == "AMI85"|
+                                    variable_class == "AMI90"|
+                                    variable_class == "AMI100"|
+                                    variable_class == "MarketRate"|
+                                    variable_class == "ManagerUnit"|
+                                    variable_class == "Bedroom_0"|
+                                    variable_class == "Bedroom_1"|
+                                    variable_class == "Bedroom_2"|
+                                    variable_class == "Bedroom_3"|
+                                    variable_class == "Bedroom_4"|
+                                    variable_class == "Bedroom_5"|
+                                    variable_class == "Bedroom_Unknown"|
+                                    variable_class == "BedCount"), select = c(PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+
+# Create formula for calculating difference between numeric values
+subset4_sum <- subset4 %>% group_by(PropertyID) %>%
+  summarize(sum.x=sum(as.numeric(variable_value.x)),
+            sum.y=sum(as.numeric(variable_value.y)))
+
+# abs function - absolute value of the percentage difference - consider cutting off at 10%?
+subset4_sum$diff <- abs((subset4_sum$sum.x-subset4_sum$sum.y)/subset4_sum$sum.x)
+
+# join back to subset4 table, so each row of data now has the percentage difference
+subset4 <- merge(subset4, subset4_sum, by = "PropertyID")
+rm(subset4_sum)
+
+
+# subset4$select <- ""
+# 
+# long_compare <- long_compare [!(long_compare$variable_class == "TotalUnits" |
+#                                 long_compare$variable_class == "TotalRestrictedUnits"|
+#                                 long_compare$variable_class == "AMI20"|
+#                                 long_compare$variable_class == "AMI25"|
+#                                 long_compare$variable_class == "AMI30"|
+#                                 long_compare$variable_class == "AMI35"|
+#                                 long_compare$variable_class == "AMI40"|
+#                                 long_compare$variable_class == "AMI45"|
+#                                 long_compare$variable_class == "AMI50"|
+#                                 long_compare$variable_class == "AMI60"|
+#                                 long_compare$variable_class == "AMI65"|
+#                                 long_compare$variable_class == "AMI70"|
+#                                 long_compare$variable_class == "AMI75"|
+#                                 long_compare$variable_class == "AMI80"|
+#                                 long_compare$variable_class == "AMI85"|
+#                                 long_compare$variable_class == "AMI90"|
+#                                 long_compare$variable_class == "AMI100"|
+#                                 long_compare$variable_class == "MarketRate"|
+#                                 long_compare$variable_class == "ManagerUnit"|
+#                                 long_compare$variable_class == "Bedroom_0"|
+#                                 long_compare$variable_class == "Bedroom_1"|
+#                                 long_compare$variable_class == "Bedroom_2"|
+#                                 long_compare$variable_class == "Bedroom_3"|
+#                                 long_compare$variable_class == "Bedroom_4"|
+#                                 long_compare$variable_class == "Bedroom_5"|
+#                                 long_compare$variable_class == "Bedroom_Unknown"|
+#                                 long_compare$variable_class == "BedCount"|
+#                                 long_compare$variable_class == "HOMEcity"|
+#                                 long_compare$variable_class == "HOMEcounty"|
+#                                 long_compare$variable_class == "HOMEstate"|
+#                                 long_compare$variable_class == "Bedroom_4"|
+#                                 long_compare$variable_class == "ProjectName"),] # remove from long_compare
