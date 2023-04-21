@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-04-14
+# Last Updated: 2023-04-21
 #################################################################################
 
 
@@ -158,11 +158,14 @@ long_compare <- long_IRHD %>%
 
 # Create field to indicate which variable to use
 long_compare$select <- ""
+long_compare <- tibble::rowid_to_column(long_compare, "ID")
 
 # Subset 1) select records with no data in the IRHD - we will take new data from WSHFC
-subset1 <- long_compare %>% subset(is.na(variable_value.x), select = c(PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset1 <- long_compare %>% subset(is.na(variable_value.x), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
 subset1$select <- subset1$variable_value.y
-long_compare <- long_compare %>% na.omit(long_compare$variable_value.x) # remove from long_compare
+long_compare <- anti_join(long_compare, subset1, by=c("ID"="ID")) # remove from long_compare
+selected <- subset1
+rm(subset1)
 
 # Subset 2) Below fields - select WHSFC data
 subset2 <- long_compare %>% subset((variable_class == "InServiceDate" |
@@ -179,28 +182,18 @@ subset2 <- long_compare %>% subset((variable_class == "InServiceDate" |
                                     variable_class == "HOMEcity"|
                                     variable_class == "HOMEcounty"|
                                     variable_class == "HOMEstate"|
-                                    variable_class == "ProjectName"), select = c(PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+                                    variable_class == "ProjectName"), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
 subset2$select <- subset2$variable_value.y
-long_compare <- long_compare [!(long_compare$variable_class == "InServiceDate" |
-                                long_compare$variable_class == "Manager"|
-                                long_compare$variable_class == "Owner"|
-                                long_compare$variable_class == "ProjectID"|
-                                long_compare$variable_class == "Disabled"|
-                                long_compare$variable_class == "Homeless"|
-                                long_compare$variable_class == "Senior"|
-                                long_compare$variable_class == "BedCount"|
-                                long_compare$variable_class == "PropertyName"|
-                                long_compare$variable_class == "Site_Type"|
-                                long_compare$variable_class == "FundingSources"|
-                                long_compare$variable_class == "HOMEcity"|
-                                long_compare$variable_class == "HOMEcounty"|
-                                long_compare$variable_class == "HOMEstate"|
-                                long_compare$variable_class == "ProjectName"),] # remove from long_compare
+long_compare <- anti_join(long_compare, subset2, by=c("ID"="ID")) # remove from long_compare
+selected <- rbind(selected, subset2)
+rm(subset2)
 
 # Subset 3) select addresses that have "multiple" in the field - use IRHD address
-subset3 <- long_compare %>% subset(str_detect(long_compare$variable_value.y, str_c("Mu")), select = c(PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset3 <- long_compare %>% subset(str_detect(long_compare$variable_value.y, str_c("Mu")), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
 subset3$select <- subset3$variable_value.x
-long_compare <- long_compare [!(str_detect(long_compare$variable_value.y, str_c("Mu"))),] # remove from long_compare
+long_compare <- anti_join(long_compare, subset3, by=c("ID"="ID"))# remove from long_compare
+selected <- rbind(selected, subset3)
+rm(subset3)
 
 # Subset 4) select all AMI/Unit count/Bedroom size data, identify small numeric changes
 subset4 <- long_compare %>% subset((variable_class == "TotalUnits" |
@@ -229,53 +222,33 @@ subset4 <- long_compare %>% subset((variable_class == "TotalUnits" |
                                     variable_class == "Bedroom_4"|
                                     variable_class == "Bedroom_5"|
                                     variable_class == "Bedroom_Unknown"|
-                                    variable_class == "BedCount"), select = c(PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+                                    variable_class == "BedCount"), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
 
 # Create formula for calculating difference between numeric values
 subset4_sum <- subset4 %>% group_by(PropertyID) %>%
   summarize(sum.x=sum(as.numeric(variable_value.x)),
             sum.y=sum(as.numeric(variable_value.y)))
 
-# abs function - absolute value of the percentage difference - consider cutting off at 10%?
+# abs function - absolute value of the percentage difference
 subset4_sum$diff <- abs((subset4_sum$sum.x-subset4_sum$sum.y)/subset4_sum$sum.x)
 
 # join back to subset4 table, so each row of data now has the percentage difference
 subset4 <- merge(subset4, subset4_sum, by = "PropertyID")
 rm(subset4_sum)
 
-# Rows with "diff" of 12% or less will be selected
+# Rows with "diff" of 12% or less will be selected - we want the WSHFC data
 subset4$select <- ifelse(subset4$diff <= "0.12", subset4$variable_value.y, "")
 
-# remove from long_compare
-long_compare <- long_compare [!(long_compare$variable_class == "TotalUnits" |
-                                long_compare$variable_class == "TotalRestrictedUnits"|
-                                long_compare$variable_class == "AMI20"|
-                                long_compare$variable_class == "AMI25"|
-                                long_compare$variable_class == "AMI30"|
-                                long_compare$variable_class == "AMI35"|
-                                long_compare$variable_class == "AMI40"|
-                                long_compare$variable_class == "AMI45"|
-                                long_compare$variable_class == "AMI50"|
-                                long_compare$variable_class == "AMI60"|
-                                long_compare$variable_class == "AMI65"|
-                                long_compare$variable_class == "AMI70"|
-                                long_compare$variable_class == "AMI75"|
-                                long_compare$variable_class == "AMI80"|
-                                long_compare$variable_class == "AMI85"|
-                                long_compare$variable_class == "AMI90"|
-                                long_compare$variable_class == "AMI100"|
-                                long_compare$variable_class == "MarketRate"|
-                                long_compare$variable_class == "ManagerUnit"|
-                                long_compare$variable_class == "Bedroom_0"|
-                                long_compare$variable_class == "Bedroom_1"|
-                                long_compare$variable_class == "Bedroom_2"|
-                                long_compare$variable_class == "Bedroom_3"|
-                                long_compare$variable_class == "Bedroom_4"|
-                                long_compare$variable_class == "Bedroom_5"|
-                                long_compare$variable_class == "Bedroom_Unknown"|
-                                long_compare$variable_class == "BedCount"|
-                                long_compare$variable_class == "HOMEcity"|
-                                long_compare$variable_class == "HOMEcounty"|
-                                long_compare$variable_class == "HOMEstate"|
-                                long_compare$variable_class == "Bedroom_4"|
-                                long_compare$variable_class == "ProjectName"),] # remove from long_compare
+# Rows where the sum.y is 0, we keep the sum.x data (if WSHFC data is 0, we keep IRHD data)
+subset4$select <- ifelse(subset4$sum.y == "0", subset4$variable_value.x, subset4$select)
+
+# Remove "diff" of greater than 12% from subset4
+subset4 <- subset4 %>% subset(!(select == ""), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select, sum.x, sum.y, diff))
+long_compare <- anti_join(long_compare, subset4, by=c("ID"="ID")) # remove from long_compare
+
+subset4 <- subset4[, -c(8,9,10)]
+selected <- rbind(selected, subset4)
+rm(subset4)
+
+# Subset 5)
+
