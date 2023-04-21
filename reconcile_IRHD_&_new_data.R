@@ -161,7 +161,7 @@ long_compare$select <- ""
 
 # Subset 1) select records with no data in the IRHD - we will take new data from WSHFC
 subset1 <- long_compare %>% subset(is.na(variable_value.x), select = c(PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
-subset1$select <- "y"
+subset1$select <- subset1$variable_value.y
 long_compare <- long_compare %>% na.omit(long_compare$variable_value.x) # remove from long_compare
 
 # Subset 2) Below fields - select WHSFC data
@@ -180,7 +180,7 @@ subset2 <- long_compare %>% subset((variable_class == "InServiceDate" |
                                     variable_class == "HOMEcounty"|
                                     variable_class == "HOMEstate"|
                                     variable_class == "ProjectName"), select = c(PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
-subset2$select <- "y"
+subset2$select <- subset2$variable_value.y
 long_compare <- long_compare [!(long_compare$variable_class == "InServiceDate" |
                                 long_compare$variable_class == "Manager"|
                                 long_compare$variable_class == "Owner"|
@@ -199,7 +199,7 @@ long_compare <- long_compare [!(long_compare$variable_class == "InServiceDate" |
 
 # Subset 3) select addresses that have "multiple" in the field - use IRHD address
 subset3 <- long_compare %>% subset(str_detect(long_compare$variable_value.y, str_c("Mu")), select = c(PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
-subset3$select <- "x"
+subset3$select <- subset3$variable_value.x
 long_compare <- long_compare [!(str_detect(long_compare$variable_value.y, str_c("Mu"))),] # remove from long_compare
 
 # Subset 4) select all AMI/Unit count/Bedroom size data, identify small numeric changes
@@ -243,38 +243,39 @@ subset4_sum$diff <- abs((subset4_sum$sum.x-subset4_sum$sum.y)/subset4_sum$sum.x)
 subset4 <- merge(subset4, subset4_sum, by = "PropertyID")
 rm(subset4_sum)
 
+# Rows with "diff" of 12% or less will be selected
+subset4$select <- ifelse(subset4$diff <= "0.12", subset4$variable_value.y, "")
 
-# subset4$select <- ""
-# 
-# long_compare <- long_compare [!(long_compare$variable_class == "TotalUnits" |
-#                                 long_compare$variable_class == "TotalRestrictedUnits"|
-#                                 long_compare$variable_class == "AMI20"|
-#                                 long_compare$variable_class == "AMI25"|
-#                                 long_compare$variable_class == "AMI30"|
-#                                 long_compare$variable_class == "AMI35"|
-#                                 long_compare$variable_class == "AMI40"|
-#                                 long_compare$variable_class == "AMI45"|
-#                                 long_compare$variable_class == "AMI50"|
-#                                 long_compare$variable_class == "AMI60"|
-#                                 long_compare$variable_class == "AMI65"|
-#                                 long_compare$variable_class == "AMI70"|
-#                                 long_compare$variable_class == "AMI75"|
-#                                 long_compare$variable_class == "AMI80"|
-#                                 long_compare$variable_class == "AMI85"|
-#                                 long_compare$variable_class == "AMI90"|
-#                                 long_compare$variable_class == "AMI100"|
-#                                 long_compare$variable_class == "MarketRate"|
-#                                 long_compare$variable_class == "ManagerUnit"|
-#                                 long_compare$variable_class == "Bedroom_0"|
-#                                 long_compare$variable_class == "Bedroom_1"|
-#                                 long_compare$variable_class == "Bedroom_2"|
-#                                 long_compare$variable_class == "Bedroom_3"|
-#                                 long_compare$variable_class == "Bedroom_4"|
-#                                 long_compare$variable_class == "Bedroom_5"|
-#                                 long_compare$variable_class == "Bedroom_Unknown"|
-#                                 long_compare$variable_class == "BedCount"|
-#                                 long_compare$variable_class == "HOMEcity"|
-#                                 long_compare$variable_class == "HOMEcounty"|
-#                                 long_compare$variable_class == "HOMEstate"|
-#                                 long_compare$variable_class == "Bedroom_4"|
-#                                 long_compare$variable_class == "ProjectName"),] # remove from long_compare
+# remove from long_compare
+long_compare <- long_compare [!(long_compare$variable_class == "TotalUnits" |
+                                long_compare$variable_class == "TotalRestrictedUnits"|
+                                long_compare$variable_class == "AMI20"|
+                                long_compare$variable_class == "AMI25"|
+                                long_compare$variable_class == "AMI30"|
+                                long_compare$variable_class == "AMI35"|
+                                long_compare$variable_class == "AMI40"|
+                                long_compare$variable_class == "AMI45"|
+                                long_compare$variable_class == "AMI50"|
+                                long_compare$variable_class == "AMI60"|
+                                long_compare$variable_class == "AMI65"|
+                                long_compare$variable_class == "AMI70"|
+                                long_compare$variable_class == "AMI75"|
+                                long_compare$variable_class == "AMI80"|
+                                long_compare$variable_class == "AMI85"|
+                                long_compare$variable_class == "AMI90"|
+                                long_compare$variable_class == "AMI100"|
+                                long_compare$variable_class == "MarketRate"|
+                                long_compare$variable_class == "ManagerUnit"|
+                                long_compare$variable_class == "Bedroom_0"|
+                                long_compare$variable_class == "Bedroom_1"|
+                                long_compare$variable_class == "Bedroom_2"|
+                                long_compare$variable_class == "Bedroom_3"|
+                                long_compare$variable_class == "Bedroom_4"|
+                                long_compare$variable_class == "Bedroom_5"|
+                                long_compare$variable_class == "Bedroom_Unknown"|
+                                long_compare$variable_class == "BedCount"|
+                                long_compare$variable_class == "HOMEcity"|
+                                long_compare$variable_class == "HOMEcounty"|
+                                long_compare$variable_class == "HOMEstate"|
+                                long_compare$variable_class == "Bedroom_4"|
+                                long_compare$variable_class == "ProjectName"),] # remove from long_compare
