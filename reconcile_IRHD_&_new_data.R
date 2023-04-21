@@ -39,7 +39,6 @@ IRHD_raw <- IRHD_raw[, c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
                            61,62,63,64,65,66,67,68,69,78,79,80,70,71,72,73,74,75,76,77)]
 
 # Remove summary AMI fields (we can do this all via a script from now on)
-
 IRHD_raw <- IRHD_raw[, -c(40,41,42,43,44)]
 
 # Clean up various fields for matching with WSHFC
@@ -250,5 +249,11 @@ subset4 <- subset4[, -c(8,9,10)]
 selected <- rbind(selected, subset4)
 rm(subset4)
 
-# Subset 5)
+# Subset 5) Address matching
 
+
+# Subset 6) Various manual selections of the remaining rows
+
+
+
+## 7) Take "selected" data and pivot wide, join to non-WSHFC records, create 2021 IRHD updated table --------------------------------------------------------------------
