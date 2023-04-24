@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-04-21
+# Last Updated: 2023-04-24
 #################################################################################
 
 
@@ -52,11 +52,17 @@ IRHD_raw$Owner[IRHD_raw$Owner == 'Low Income Housing Institute'] <- 'Low Income 
 IRHD_raw  <- IRHD_raw %>% filter(County == "Pierce" | County == "Snohomish" | County == "Kitsap")
 
 
-## 3) Locate records in WSHFC not in IRHD (likely new records/properties) --------------------------------------------------------------------
+## 3) clean up some variables in WSHFC before joining --------------------------------------------------------------------
+
+WSHFC_raw$Address[WSHFC_raw$Address == '1724 E. 44th'] <- '1724 E 44th Street'
+WSHFC_raw$Address[WSHFC_raw$Address == '9225 Bayshore Drive NW'] <- '9225 Bay Shore Dr NW'
+WSHFC_raw$Address[WSHFC_raw$Address == '9239 Bayshore Dr NW'] <- '9239 Bay Shore Dr NW'
+
+## 4) Locate records in WSHFC not in IRHD (likely new records/properties) --------------------------------------------------------------------
 
 newWSHFC <- anti_join(WSHFC_raw, IRHD_raw, by = "PropertyID")
 
-## 4) Locate records in IRHD not in WSHFC (No longer in WSHFC data, but once were?) --------------------------------------------------------------------
+## 5) Locate records in IRHD not in WSHFC (No longer in WSHFC data, but once were?) --------------------------------------------------------------------
 
 nomatchIRHD <- anti_join(IRHD_raw, WSHFC_raw, by = "PropertyID")
 nomatchIRHD <- nomatchIRHD %>% drop_na(PropertyID)
@@ -64,7 +70,7 @@ nomatchIRHD <- nomatchIRHD %>% drop_na(PropertyID)
 # setwd("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Raw Data")
 # write.csv(nomatchIRHD, "nomatchIRHD.csv", row.names=FALSE)
 
-## 5) Identify matched records in IRHD and WSHFC --------------------------------------------------------------------
+## 6) Identify matched records in IRHD and WSHFC --------------------------------------------------------------------
 
 # Pivot the IRHD_raw data to make it long and thin
 long_IRHD <- IRHD_raw %>%
@@ -153,7 +159,7 @@ long_compare <- long_IRHD %>%
   filter(match == "NO") %>%
   drop_na(variable_value.y)
 
-## 6) Identify which rows will be updated with new WSHFC data, or keep existing data --------------------------------------------------------------------
+## 7) Identify which rows will be updated with new WSHFC data, or keep existing data --------------------------------------------------------------------
 
 # Create field to indicate which variable to use
 long_compare$select <- ""
@@ -256,4 +262,41 @@ rm(subset4)
 
 
 
-## 7) Take "selected" data and pivot wide, join to non-WSHFC records, create 2021 IRHD updated table --------------------------------------------------------------------
+## 8) Take "selected" data and pivot wide, update IRHD records, create 2021 IRHD updated table --------------------------------------------------------------------
+
+selected <- selected %>% pivot_wider(c('PropertyID'), names_from = 'variable_class', values_from = 'select')
+
+# IRHD_clean <- IRHD_raw
+# IRHD_clean <- left_join(IRHD_clean, selected, by = 'PropertyID') %>%
+#   mutate(ProjectID.x = ifelse(!is.na(ProjectID.y), ProjectID.y, ProjectID.x)) %>%
+#   mutate(ProjectName.x = ifelse(!is.na(ProjectName.y), ProjectName.y, ProjectName.x)) %>%
+#   mutate(PropertyName.x = ifelse(!is.na(PropertyName.y), PropertyName.y, PropertyName.x)) %>%
+#   mutate(Owner.x = ifelse(!is.na(Owner.y), Owner.y, Owner.x)) %>%
+# 
+#   mutate(Manager.x = ifelse(!is.na(Manager.y), Manager.y, Manager.x)) %>%
+#   mutate(InServiceDate.x = ifelse(!is.na(InServiceDate.y), InServiceDate.y, InServiceDate.x)) %>%
+#   mutate(ExpirationDate.x = ifelse(!is.na(ExpirationDate.y), ExpirationDate.y, ExpirationDate.x)) %>%
+#   mutate(Address.x = ifelse(!is.na(Address.y), Address.y, Address.x)) %>% 
+#   
+#   mutate(ZIP.x = ifelse(!is.na(ZIP.y), ZIP.y, ZIP.x)) %>%
+#   mutate(TotalUnits.x = ifelse(!is.na(TotalUnits.y), TotalUnits.y, TotalUnits.x)) %>%
+#   mutate(TotalRestrictedUnits.x = ifelse(!is.na(TotalRestrictedUnits.y), TotalRestrictedUnits.y, TotalRestrictedUnits.x)) %>%
+#   mutate(AMI30.x = ifelse(!is.na(AMI30.y), AMI30.y, AMI30.x)) %>%
+#   
+#   mutate(AMI35.x = ifelse(!is.na(AMI35.y), AMI35.y, AMI35.x)) %>%
+#   mutate(AMI40.x = ifelse(!is.na(AMI40.y), ProjectID.y, ProjectID.x)) %>%
+#   mutate(ProjectID.x = ifelse(!is.na(ProjectID.y), ProjectID.y, ProjectID.x)) %>%
+#   mutate(ProjectID.x = ifelse(!is.na(ProjectID.y), ProjectID.y, ProjectID.x))
+
+
+library(data.table)
+
+IRHD_clean <- setDT(IRHD_raw)
+updates <- setDT(selected)
+update_fields <- names(selected) %>% .[!(. == "PropertyID")]
+ihrd[updates, (update_fields):=mget(paste0("i.", update_fields)), on=.(PropertyID)]
+
+
+
+
+
