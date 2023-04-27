@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-04-24
+# Last Updated: 2023-04-26
 #################################################################################
 
 
@@ -11,6 +11,8 @@
 library(tidyverse)
 library(tidyr)
 library(readxl)
+library(data.table)
+library(magrittr)
 
 ## 1) load data ---------------------------------------------------------------------
 
@@ -264,39 +266,15 @@ rm(subset4)
 
 ## 8) Take "selected" data and pivot wide, update IRHD records, create 2021 IRHD updated table --------------------------------------------------------------------
 
-selected <- selected %>% pivot_wider(c('PropertyID'), names_from = 'variable_class', values_from = 'select')
+# Transform "selected" for updating existing IRHD
+selected <- selected %>% pivot_wider(id_cols = c('PropertyID'), names_from = 'variable_class', values_from = 'select')
 
-# IRHD_clean <- IRHD_raw
-# IRHD_clean <- left_join(IRHD_clean, selected, by = 'PropertyID') %>%
-#   mutate(ProjectID.x = ifelse(!is.na(ProjectID.y), ProjectID.y, ProjectID.x)) %>%
-#   mutate(ProjectName.x = ifelse(!is.na(ProjectName.y), ProjectName.y, ProjectName.x)) %>%
-#   mutate(PropertyName.x = ifelse(!is.na(PropertyName.y), PropertyName.y, PropertyName.x)) %>%
-#   mutate(Owner.x = ifelse(!is.na(Owner.y), Owner.y, Owner.x)) %>%
-# 
-#   mutate(Manager.x = ifelse(!is.na(Manager.y), Manager.y, Manager.x)) %>%
-#   mutate(InServiceDate.x = ifelse(!is.na(InServiceDate.y), InServiceDate.y, InServiceDate.x)) %>%
-#   mutate(ExpirationDate.x = ifelse(!is.na(ExpirationDate.y), ExpirationDate.y, ExpirationDate.x)) %>%
-#   mutate(Address.x = ifelse(!is.na(Address.y), Address.y, Address.x)) %>% 
-#   
-#   mutate(ZIP.x = ifelse(!is.na(ZIP.y), ZIP.y, ZIP.x)) %>%
-#   mutate(TotalUnits.x = ifelse(!is.na(TotalUnits.y), TotalUnits.y, TotalUnits.x)) %>%
-#   mutate(TotalRestrictedUnits.x = ifelse(!is.na(TotalRestrictedUnits.y), TotalRestrictedUnits.y, TotalRestrictedUnits.x)) %>%
-#   mutate(AMI30.x = ifelse(!is.na(AMI30.y), AMI30.y, AMI30.x)) %>%
-#   
-#   mutate(AMI35.x = ifelse(!is.na(AMI35.y), AMI35.y, AMI35.x)) %>%
-#   mutate(AMI40.x = ifelse(!is.na(AMI40.y), ProjectID.y, ProjectID.x)) %>%
-#   mutate(ProjectID.x = ifelse(!is.na(ProjectID.y), ProjectID.y, ProjectID.x)) %>%
-#   mutate(ProjectID.x = ifelse(!is.na(ProjectID.y), ProjectID.y, ProjectID.x))
+# Create new clean IRHD file
+IRHD_clean <- IRHD_raw
 
-
-library(data.table)
-
-IRHD_clean <- setDT(IRHD_raw)
-updates <- setDT(selected)
-update_fields <- names(selected) %>% .[!(. == "PropertyID")]
-ihrd[updates, (update_fields):=mget(paste0("i.", update_fields)), on=.(PropertyID)]
-
-
-
-
+# Update records as determined by the "selected" dataframe
+IRHD_clean <- setDT(IRHD_clean)
+updater <- setDT(selected)
+update_fields <- names(updater) %>% .[!(. == "PropertyID")]
+IRHD_clean[updater,(update_fields):=dplyr::coalesce(mget(paste0("i.", update_fields)), mget(update_fields)), on=.(PropertyID)]
 
