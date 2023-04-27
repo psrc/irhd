@@ -20,6 +20,20 @@ rm(WSHFC_raw)
 wshfc20 <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2020_cleaned.csv")
 wshfc21 <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv")
 
+stringr::str_detect('Multiple locations', 'Multiple')
+
+wshfc20 %>%
+  filter(!stringr::str_detect(Address, 'Multiple')) %>%
+  filter(!stringr::str_detect(Address, 'Mutiple')) %>%
+  select('ProjectID', 'Owner', 'Address')
+
+df <- wshfc20 %>%
+  filter(!stringr::str_detect(Address, 'Multiple')) %>%
+  filter(!stringr::str_detect(Address, 'Mutiple')) %>%
+  stringdist_join(wshfc21, by=c('ProjectName','PropertyName','Address'), method="jw", max_dist = .1) %>%
+  select('ProjectID.x', 'ProjectID.y', 'ProjectName.x', 'ProjectName.y', 'Address.x', 'Address.y')
+
+
 # Join nomatchIRHD to wshfc20 - were these records included in the 2020 data? They are currently missing from 2021 wshfc
 nomatchIRHD_wshfc20_join <- left_join(nomatchIRHD,wshfc20, by = "PropertyID")
 
