@@ -269,12 +269,35 @@ rm(subset4)
 # Transform "selected" for updating existing IRHD
 selected <- selected %>% pivot_wider(id_cols = c('PropertyID'), names_from = 'variable_class', values_from = 'select')
 
+class(selected$ProjectID) = "numeric"
+class(selected$TotalUnits) = "numeric"
+class(selected$TotalRestrictedUnits) = "numeric"
+class(selected$ZIP) = "numeric"
+class(selected$AMI30) = "numeric"
+class(selected$AMI35) = "numeric"
+class(selected$AMI40) = "numeric"
+class(selected$AMI45) = "numeric"
+class(selected$AMI50) = "numeric"
+class(selected$AMI60) = "numeric"
+class(selected$AMI65) = "numeric"
+class(selected$AMI80) = "numeric"
+class(selected$Bedroom_1) = "numeric"
+class(selected$Bedroom_2) = "numeric"
+class(selected$Bedroom_3) = "numeric"
+class(selected$Bedroom_4) = "numeric"
+class(selected$Bedroom_Unknown) = "numeric"
+class(selected$BedCount) = "numeric"
+class(selected$Senior) = "numeric"
+class(selected$Homeless) = "numeric"
+class(selected$Disabled) = "numeric"
+
 # Create new clean IRHD file
 IRHD_clean <- IRHD_raw
+class(IRHD_clean$ExpirationDate) = "character"
 
 # Update records as determined by the "selected" dataframe
 IRHD_clean <- setDT(IRHD_clean)
-updater <- setDT(selected)
-update_fields <- names(updater) %>% .[!(. == "PropertyID")]
-IRHD_clean[updater,(update_fields):=dplyr::coalesce(mget(paste0("i.", update_fields)), mget(update_fields)), on=.(PropertyID)]
-
+selected <- setDT(selected)
+update_fields <- names(selected) %>% .[!(. == "PropertyID")]
+IRHD_clean[selected,(update_fields):=dplyr::coalesce(mget(paste0("i.", update_fields)), mget(update_fields)), on=.(PropertyID)]
+rm(update_fields)
