@@ -46,7 +46,11 @@ IRHD_raw %<>% .[, grep("\\d+-\\d+%", colnames(.)):=NULL]                        
 IRHD_raw %<>% mutate(HOMEcity = NA_character_,                                                     # Add fields to match WSHFC
                      HOMEcounty = NA_character_,
                      HOMEstate = NA_character_, 
-                     .after = HOME)                                                                
+                     .after = HOME)
+
+# Manage duplicate records in IRHD
+IRHD_raw %<>%  filter(!(UniqueID == "SH_7002")) %>% # Remove this record, keep SH_6053
+               filter(!(UniqueID == "SH_6516")) # Remove this record, keep SH_6517
 
 ## 3) clean up some variables in WSHFC before joining --------------------------------------------------------------------
 
