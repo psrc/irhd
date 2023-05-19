@@ -268,7 +268,7 @@ rm(subset4)
 
 
 
-## 8) Take "selected" data and pivot wide, update IRHD records, create 2021 IRHD updated table --------------------------------------------------------------------
+## 8) Take "selected" data and update IRHD records, create IRHD_clean table --------------------------------------------------------------------
 
 # Transform "selected" for updating existing IRHD
 selected <- selected %>% pivot_wider(id_cols = c('PropertyID'), names_from = 'variable_class', values_from = 'select') %>%
@@ -307,4 +307,4 @@ blankfill <- IRHD_clean %>%                                                     
   .[!is.na(PropertyID) & UniqueID %not_in% (dupes), (colnames(.) %in% shared_fields), with=FALSE]  # include only common records, no duplicate keys
 selected %<>% rows_patch(blankfill, by="PropertyID", unmatched="ignore")                           # replace NA in `selected` with values from `IRHD_clean`
 IRHD_clean %<>% .[selected, (shared_fields):=mget(paste0("i.", shared_fields)), on=.(PropertyID)]  # carry over all matching variables from selected
-#rm(dupes, blankfill, shared_fields)                                                               # Clean up
+rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, wshfc_colClasses, WSHFC_cols, irhd_colClasses, long_compare) # Clean up
