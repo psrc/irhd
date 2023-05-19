@@ -293,7 +293,7 @@ class(selected$Homeless) = "numeric"
 class(selected$Disabled) = "numeric"
 
 # Create new clean IRHD file
-IRHD_clean <- IRHD_raw
+IRHD_clean <- copy(IRHD_raw)
 
 # Update records as determined by the "selected" dataframe
 shared_fields <- intersect(names(selected), names(IRHD_clean))                                     # fields in common                                                   
