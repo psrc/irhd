@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-04-26
+# Last Updated: 2023-05-19
 #################################################################################
 
 `%not_in%` <- Negate(`%in%`)
@@ -46,7 +46,11 @@ IRHD_raw %<>% .[, grep("\\d+-\\d+%", colnames(.)):=NULL]                        
 IRHD_raw %<>% mutate(HOMEcity = NA_character_,                                                     # Add fields to match WSHFC
                      HOMEcounty = NA_character_,
                      HOMEstate = NA_character_, 
-                     .after = HOME)                                                                
+                     .after = HOME)
+
+# Manage duplicate records in IRHD
+IRHD_raw %<>%  filter(!(UniqueID == "SH_7002")) %>% # Remove this record, keep SH_6053
+               filter(!(UniqueID == "SH_6516")) # Remove this record, keep SH_6517
 
 ## 3) clean up some variables in WSHFC before joining --------------------------------------------------------------------
 
@@ -168,7 +172,7 @@ long_compare$select <- ""
 long_compare <- tibble::rowid_to_column(long_compare, "ID")
 
 # Subset 1) select records with no data in the IRHD - we will take new data from WSHFC
-subset1 <- long_compare %>% subset(is.na(variable_value.x), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset1 <- long_compare %>% subset((is.na(variable_value.x)| variable_value.x == ""), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
 subset1$select <- subset1$variable_value.y
 long_compare <- anti_join(long_compare, subset1, by=c("ID"="ID")) # remove from long_compare
 selected <- subset1
