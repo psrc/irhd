@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-05-19
+# Last Updated: 2023-05-22
 #################################################################################
 
 `%not_in%` <- Negate(`%in%`)
@@ -248,7 +248,7 @@ subset4 <- merge(subset4, subset4_sum, by = "PropertyID")
 rm(subset4_sum)
 
 # Rows with "diff" of 12% or less will be selected - we want the WSHFC data
-subset4$select <- ifelse(subset4$diff <= "0.12", subset4$variable_value.y, "")
+subset4$select <- ifelse(subset4$diff <= "0.12", subset4$variable_value.y, subset4$variable_value.x)
 
 # Rows where the sum.y is 0, we keep the sum.x data (if WSHFC data is 0, we keep IRHD data)
 subset4$select <- ifelse(subset4$sum.y == "0", subset4$variable_value.x, subset4$select)
@@ -264,9 +264,14 @@ rm(subset4)
 # Subset 5) Address matching
 
 
+
+
 # Subset 6) Various manual selections of the remaining rows
-
-
+subset6 <- long_compare %>% subset(str_detect(long_compare$variable_value.y, str_c("303 Howell Way & 417 - 3rd Avenue")), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset6$select <- subset6$variable_value.x
+long_compare <- anti_join(long_compare, subset6, by=c("ID"="ID"))# remove from long_compare
+selected <- rbind(selected, subset6)
+rm(subset6)
 
 ## 8) Take "selected" data and update IRHD records, create IRHD_clean table --------------------------------------------------------------------
 
@@ -307,4 +312,4 @@ blankfill <- IRHD_clean %>%                                                     
   .[!is.na(PropertyID) & UniqueID %not_in% (dupes), (colnames(.) %in% shared_fields), with=FALSE]  # include only common records, no duplicate keys
 selected %<>% rows_patch(blankfill, by="PropertyID", unmatched="ignore")                           # replace NA in `selected` with values from `IRHD_clean`
 IRHD_clean %<>% .[selected, (shared_fields):=mget(paste0("i.", shared_fields)), on=.(PropertyID)]  # carry over all matching variables from selected
-rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, wshfc_colClasses, WSHFC_cols, irhd_colClasses, long_compare) # Clean up
+#rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, wshfc_colClasses, WSHFC_cols, irhd_colClasses, long_compare) # Clean up
