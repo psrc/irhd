@@ -2,9 +2,10 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-04-26
+# Last Updated: 2023-05-22
 #################################################################################
 
+`%not_in%` <- Negate(`%in%`)
 
 ## load packages-----------------------------------------------------------------
 
@@ -14,13 +15,22 @@ library(readxl)
 library(data.table)
 library(magrittr)
 
+IRHD_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/1 Working Files/2021 IRHD v3 - ready4reconcilescript.csv"
+WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv"
+
 ## 1) load data ---------------------------------------------------------------------
 
 #load cleaned 2021 IRHD that has portfolios as of end of 2021
-IRHD_raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/1 Working Files/2021 IRHD v3 - ready4reconcilescript.csv")
+IRHD_raw <- fread(IRHD_path)
 
-#load cleaned WSHFC data that has portfolios as of end of 2021
-WSHFC_raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv")
+# borrow datatype characterization from IRHD to apply to identical columns in WSHFC data
+irhd_colClasses = sapply(IRHD_raw, class)
+names(irhd_colClasses) <- colnames(IRHD_raw)
+WSHFC_cols = colnames(read.csv(WSHFC_path, nrows=1))
+wshfc_colClasses <- irhd_colClasses %>% .[names(.) %in% WSHFC_cols]
+
+#load cleaned WSHFC data that has portfolios as of end of 2021; apply datatypes to match
+WSHFC_raw <- fread(WSHFC_path, colClasses=wshfc_colClasses)
 
 #load cleaned KC data that has portfolios as of end of 2021
 # KC21raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/")
@@ -28,33 +38,27 @@ WSHFC_raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Clea
 
 ## 2) clean up fields in IRHD, limit to 3 counties, add/remove fields --------------------------------------------------------------------
 
+IRHD_raw %<>% .[County %in% c("Pierce", "Snohomish", "Kitsap")]                                    # King county handled separately
+
+IRHD_raw %<>% .[, grep("\\d+-\\d+%", colnames(.)):=NULL]                                           # Remove summary AMI fields
+
 # Create three new HOME fields
-IRHD_raw <- IRHD_raw %>%
-  mutate(HOMEcity = as.character(NA),
-         HOMEcounty = as.character(NA),
-         HOMEstate = as.character(NA))
+IRHD_raw %<>% mutate(HOMEcity = NA_character_,                                                     # Add fields to match WSHFC
+                     HOMEcounty = NA_character_,
+                     HOMEstate = NA_character_, 
+                     .after = HOME)
 
-# reorder fields - puts new HOME fields next to the existing HOME field
-IRHD_raw <- IRHD_raw[, c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,
-                           21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,
-                           41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,
-                           61,62,63,64,65,66,67,68,69,78,79,80,70,71,72,73,74,75,76,77)]
+# Manage duplicate records in IRHD
+IRHD_raw %<>%  filter(!(UniqueID == "SH_7002")) %>% # Remove this record, keep SH_6053
+               filter(!(UniqueID == "SH_6516")) # Remove this record, keep SH_6517
 
-# Remove summary AMI fields (we can do this all via a script from now on)
-IRHD_raw <- IRHD_raw[, -c(40,41,42,43,44)]
+## 3) clean up some variables in WSHFC before joining --------------------------------------------------------------------
 
-# Clean up various fields for matching with WSHFC
 IRHD_raw$Manager[IRHD_raw$Manager == 'HASCO'] <- 'Snohomish County Housing Authority'
 IRHD_raw$Owner[IRHD_raw$Owner == 'HASCO'] <- 'Snohomish County Housing Authority'
 
 IRHD_raw$Manager[IRHD_raw$Manager == 'Low Income Housing Institute'] <- 'Low Income Housing Institute (LIHI)'
 IRHD_raw$Owner[IRHD_raw$Owner == 'Low Income Housing Institute'] <- 'Low Income Housing Institute (LIHI)'
-
-# Limit to just Pierce, Snohomish, and Kitsap
-IRHD_raw  <- IRHD_raw %>% filter(County == "Pierce" | County == "Snohomish" | County == "Kitsap")
-
-
-## 3) clean up some variables in WSHFC before joining --------------------------------------------------------------------
 
 WSHFC_raw$Address[WSHFC_raw$Address == '1724 E. 44th'] <- '1724 E 44th Street'
 WSHFC_raw$Address[WSHFC_raw$Address == '9225 Bayshore Drive NW'] <- '9225 Bay Shore Dr NW'
@@ -168,7 +172,7 @@ long_compare$select <- ""
 long_compare <- tibble::rowid_to_column(long_compare, "ID")
 
 # Subset 1) select records with no data in the IRHD - we will take new data from WSHFC
-subset1 <- long_compare %>% subset(is.na(variable_value.x), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset1 <- long_compare %>% subset((is.na(variable_value.x)| variable_value.x == ""), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
 subset1$select <- subset1$variable_value.y
 long_compare <- anti_join(long_compare, subset1, by=c("ID"="ID")) # remove from long_compare
 selected <- subset1
@@ -244,7 +248,7 @@ subset4 <- merge(subset4, subset4_sum, by = "PropertyID")
 rm(subset4_sum)
 
 # Rows with "diff" of 12% or less will be selected - we want the WSHFC data
-subset4$select <- ifelse(subset4$diff <= "0.12", subset4$variable_value.y, "")
+subset4$select <- ifelse(subset4$diff <= "0.12", subset4$variable_value.y, subset4$variable_value.x)
 
 # Rows where the sum.y is 0, we keep the sum.x data (if WSHFC data is 0, we keep IRHD data)
 subset4$select <- ifelse(subset4$sum.y == "0", subset4$variable_value.x, subset4$select)
@@ -260,21 +264,52 @@ rm(subset4)
 # Subset 5) Address matching
 
 
+
+
 # Subset 6) Various manual selections of the remaining rows
+subset6 <- long_compare %>% subset(str_detect(long_compare$variable_value.y, str_c("303 Howell Way & 417 - 3rd Avenue")), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset6$select <- subset6$variable_value.x
+long_compare <- anti_join(long_compare, subset6, by=c("ID"="ID"))# remove from long_compare
+selected <- rbind(selected, subset6)
+rm(subset6)
 
-
-
-## 8) Take "selected" data and pivot wide, update IRHD records, create 2021 IRHD updated table --------------------------------------------------------------------
+## 8) Take "selected" data and update IRHD records, create IRHD_clean table --------------------------------------------------------------------
 
 # Transform "selected" for updating existing IRHD
-selected <- selected %>% pivot_wider(id_cols = c('PropertyID'), names_from = 'variable_class', values_from = 'select')
+selected <- selected %>% pivot_wider(id_cols = c('PropertyID'), names_from = 'variable_class', values_from = 'select') %>%
+  setDT()
+
+class(selected$ProjectID) = "numeric"
+class(selected$TotalUnits) = "numeric"
+class(selected$TotalRestrictedUnits) = "numeric"
+class(selected$ZIP) = "numeric"
+class(selected$AMI30) = "numeric"
+class(selected$AMI35) = "numeric"
+class(selected$AMI40) = "numeric"
+class(selected$AMI45) = "numeric"
+class(selected$AMI50) = "numeric"
+class(selected$AMI60) = "numeric"
+class(selected$AMI65) = "numeric"
+class(selected$AMI80) = "numeric"
+class(selected$Bedroom_1) = "numeric"
+class(selected$Bedroom_2) = "numeric"
+class(selected$Bedroom_3) = "numeric"
+class(selected$Bedroom_4) = "numeric"
+class(selected$Bedroom_Unknown) = "numeric"
+class(selected$BedCount) = "numeric"
+class(selected$Senior) = "numeric"
+class(selected$Homeless) = "numeric"
+class(selected$Disabled) = "numeric"
 
 # Create new clean IRHD file
-IRHD_clean <- IRHD_raw
+IRHD_clean <- copy(IRHD_raw)
 
 # Update records as determined by the "selected" dataframe
-IRHD_clean <- setDT(IRHD_clean)
-updater <- setDT(selected)
-update_fields <- names(updater) %>% .[!(. == "PropertyID")]
-IRHD_clean[updater,(update_fields):=dplyr::coalesce(mget(paste0("i.", update_fields)), mget(update_fields)), on=.(PropertyID)]
-
+shared_fields <- intersect(names(selected), names(IRHD_clean))                                     # fields in common                                                   
+dupes <- IRHD_clean[duplicated(PropertyID), cbind(.SD[1], number=.N), by=PropertyID] %>%           # duplicates (to exclude)
+  pull(UniqueID) 
+blankfill <- IRHD_clean %>%                                                                        # create IRHD data that matches fields from selected
+  .[!is.na(PropertyID) & UniqueID %not_in% (dupes), (colnames(.) %in% shared_fields), with=FALSE]  # include only common records, no duplicate keys
+selected %<>% rows_patch(blankfill, by="PropertyID", unmatched="ignore")                           # replace NA in `selected` with values from `IRHD_clean`
+IRHD_clean %<>% .[selected, (shared_fields):=mget(paste0("i.", shared_fields)), on=.(PropertyID)]  # carry over all matching variables from selected
+#rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, wshfc_colClasses, WSHFC_cols, irhd_colClasses, long_compare) # Clean up
