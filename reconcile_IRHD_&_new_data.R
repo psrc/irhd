@@ -17,6 +17,7 @@ library(magrittr)
 
 IRHD_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/1 Working Files/2021 IRHD v3 - ready4reconcilescript.csv"
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv"
+script_path <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/address_match.R"
 
 ## 1) load data ---------------------------------------------------------------------
 
@@ -51,6 +52,22 @@ IRHD_raw %<>% mutate(HOMEcity = NA_character_,                                  
 # Manage duplicate records in IRHD
 IRHD_raw %<>%  filter(!(UniqueID == "SH_7002")) %>% # Remove this record, keep SH_6053
                filter(!(UniqueID == "SH_6516")) # Remove this record, keep SH_6517
+
+# Remove Jurisdiction and cityFIPS fields, we will calculate these in Elmer going forward
+IRHD_raw %<>% select(-c(Jurisdiction,CityFIPS))
+
+# Clean Address field for matching
+remotes::install_github("slu-openGIS/postmastr")
+source("C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/address_match.R")
+library(stringr)
+
+IRHD_raw$fulladdress <- str_c(IRHD_raw$Address,', ',IRHD_raw$City,', WA, ',IRHD_raw$ZIP)
+IRHD_raw <- add_cleaned_addresses(IRHD_raw)
+
+
+
+
+
 
 ## 3) clean up some variables in WSHFC before joining --------------------------------------------------------------------
 
