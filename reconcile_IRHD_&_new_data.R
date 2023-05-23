@@ -46,7 +46,7 @@ IRHD_raw %<>% .[, grep("\\d+-\\d+%", colnames(.)):=NULL]                        
 # Create three new HOME fields
 IRHD_raw %<>% mutate(HOMEcity = NA_character_,                                                     # Add fields to match WSHFC
                      HOMEcounty = NA_character_,
-                     HOMEstate = NA_character_, 
+                     HOMEstate = NA_character_,
                      .after = HOME)
 
 # Manage duplicate records in IRHD
@@ -64,7 +64,7 @@ library(stringr)
 IRHD_raw$fulladdress <- str_c(IRHD_raw$Address,', ',IRHD_raw$City,', WA, ',IRHD_raw$ZIP)
 IRHD_raw <- add_cleaned_addresses(IRHD_raw)
 
-
+str(IRHD_raw)
 
 
 
@@ -203,7 +203,7 @@ subset2 <- long_compare %>% subset((variable_class == "InServiceDate" |
                                     variable_class == "Disabled"|
                                     variable_class == "Homeless"|
                                     variable_class == "Senior"|
-                                    variable_class == "BedCount"|  
+                                    variable_class == "BedCount"|
                                     variable_class == "PropertyName"|
                                     variable_class == "Site_Type"|
                                     variable_class == "FundingSources"|
@@ -322,9 +322,9 @@ class(selected$Disabled) = "numeric"
 IRHD_clean <- copy(IRHD_raw)
 
 # Update records as determined by the "selected" dataframe
-shared_fields <- intersect(names(selected), names(IRHD_clean))                                     # fields in common                                                   
+shared_fields <- intersect(names(selected), names(IRHD_clean))                                     # fields in common
 dupes <- IRHD_clean[duplicated(PropertyID), cbind(.SD[1], number=.N), by=PropertyID] %>%           # duplicates (to exclude)
-  pull(UniqueID) 
+  pull(UniqueID)
 blankfill <- IRHD_clean %>%                                                                        # create IRHD data that matches fields from selected
   .[!is.na(PropertyID) & UniqueID %not_in% (dupes), (colnames(.) %in% shared_fields), with=FALSE]  # include only common records, no duplicate keys
 selected %<>% rows_patch(blankfill, by="PropertyID", unmatched="ignore")                           # replace NA in `selected` with values from `IRHD_clean`
