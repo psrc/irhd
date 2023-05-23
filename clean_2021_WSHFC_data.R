@@ -18,6 +18,9 @@ original_WSHFC_raw <- read_xlsx(paste0(J_drive_raw_files_filepath, "PSRC Report_
 
 ## 2) create functions --------------------------------------------------------------------
 
+#load function(s) in file address_match.R
+source('address_match.R')
+
 #create function to select and arrange columns needed for joining
 select_and_arrange_columns_function <- function(df){
   df <- df %>%
@@ -87,74 +90,74 @@ WSHFC_cleaned <- original_WSHFC_raw %>%
   filter(County == "Snohomish" | County == "Pierce" | County == "Kitsap")
 
 #create grouped funder column
-WSHFC_cleaned <- WSHFC_cleaned %>% 
-  group_by(`Site Name`, Address) %>% 
+WSHFC_cleaned <- WSHFC_cleaned %>%
+  group_by(`Site Name`, Address) %>%
   mutate(Funder = paste(sort(unique(Funder)), collapse = ","))
 
 # ------- DATA FILTER #2 ------- select entry with the largest total restricted unit count
-WSHFC_cleaned <- WSHFC_cleaned %>% 
-  group_by(`Site Name`, Address) %>% 
+WSHFC_cleaned <- WSHFC_cleaned %>%
+  group_by(`Site Name`, Address) %>%
   slice_max(`Income & Rent Restricted Units`,
             n = 1,
-            with_ties = TRUE) %>% 
+            with_ties = TRUE) %>%
   distinct()
 
 #check for duplicates
-WSHFC_cleaned %>% 
-  unique() %>% 
-  group_by(`Site Name`, Address) %>% 
-  mutate(n = n()) %>% 
-  filter(n > 1) %>% 
+WSHFC_cleaned %>%
+  unique() %>%
+  group_by(`Site Name`, Address) %>%
+  mutate(n = n()) %>%
+  filter(n > 1) %>%
   arrange(`Project Name`, `Site Name`, Address) # %>%
 #  view()
 
 # ------- DATA FILTER #3 ------- select only entry with latest expiration date
-WSHFC_cleaned <- WSHFC_cleaned %>% 
-  group_by(`Site Name`, Address) %>% 
+WSHFC_cleaned <- WSHFC_cleaned %>%
+  group_by(`Site Name`, Address) %>%
   slice_max(`Project Expiration Date`,
             n = 1,
-            with_ties = TRUE) %>% 
+            with_ties = TRUE) %>%
   distinct()
 
 #check for duplicates
-WSHFC_cleaned %>% 
-  unique() %>% 
-  group_by(`Site Name`, Address) %>% 
-  mutate(n = n()) %>% 
-  filter(n > 1) %>% 
+WSHFC_cleaned %>%
+  unique() %>%
+  group_by(`Site Name`, Address) %>%
+  mutate(n = n()) %>%
+  filter(n > 1) %>%
   arrange(`Project Name`, `Site Name`, Address)# %>%
 #  view()
 
 # ------- DATA FILTER #4 ------- select only entry with earliest in service date
-WSHFC_cleaned <- WSHFC_cleaned %>% 
-  group_by(`Site Name`, Address) %>% 
+WSHFC_cleaned <- WSHFC_cleaned %>%
+  group_by(`Site Name`, Address) %>%
   slice_min(`First Credit Year or C of O's`,
             n = 1,
-            with_ties = TRUE) %>% 
+            with_ties = TRUE) %>%
   distinct()
 
 #check for duplicates
-WSHFC_cleaned %>% 
-  distinct() %>% 
-  group_by(`Site Name`, Address) %>% 
-  mutate(n = n()) %>% 
-  filter(n > 1) %>% 
+WSHFC_cleaned %>%
+  distinct() %>%
+  group_by(`Site Name`, Address) %>%
+  mutate(n = n()) %>%
+  filter(n > 1) %>%
   arrange(`Project Name`, `Site Name`, Address)# %>%
  # view()
 
 # ------- DATA FILTER #4 ------- for entries where there are multiple properties with the same total restricted unit count but different other data, select record that seems correct
-WSHFC_cleaned <- WSHFC_cleaned %>% 
-  distinct() %>% 
+WSHFC_cleaned <- WSHFC_cleaned %>%
+  distinct() %>%
   filter(!(`Project Name` == "Annobee Apartments, The" & `Site Name` == "Annobee Apartments, The" & `80%` == 43)) %>% #remove this record, keep record with pop served & deeper affordability
   filter(!(`Project Name` == "Catalina Apartments" & `Site Name` == "Catalina Apartments" & `40%` == 32)) %>% #remove this record, keep record with pop served & deeper affordability
   filter(!(`Project Name` == "Maternity Shelter (Youth Emergency Shelter (YES) North)" & `Site Name` == "Youth Emergency Shelter (YES) North" & `50%` == 8)) #remove this record, keep record with deeper affordability
 
 #check to see if any duplicates remaining - should be 0
-WSHFC_cleaned %>% 
-  distinct() %>% 
-  group_by(`Site Name`, Address) %>% 
-  mutate(n = n()) %>% 
-  filter(n > 1) %>% 
+WSHFC_cleaned %>%
+  distinct() %>%
+  group_by(`Site Name`, Address) %>%
+  mutate(n = n()) %>%
+  filter(n > 1) %>%
   arrange(`Project Name`, `Site Name`, Address) %>%
   view()
 
@@ -164,7 +167,7 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
   filter(`First Credit Year or C of O's` < "2022")
 
 #rename columns and add empty columns for data we dont have
-WSHFC_cleaned <- WSHFC_cleaned %>% 
+WSHFC_cleaned <- WSHFC_cleaned %>%
   mutate(DataSource = as.character(NA),
          AMI25 = as.numeric(NA),
          AMI75 = as.numeric(NA),
@@ -175,7 +178,7 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
          ManagerUnit = as.numeric(NA),
          Confidentiality = as.character(NA),
          Policy = as.character(NA),
-         Tenure = as.character(NA)) %>% 
+         Tenure = as.character(NA)) %>%
   rename(ProjectID = `ProjectKey`,
          ProjectName = `Project Name`,
          PropertyID = `SiteKey`,
@@ -216,7 +219,7 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
          ZIP = `Zip`)
 
 #select only necessary columns and arrange columns
-WSHFC_cleaned <- select_and_arrange_columns_function(WSHFC_cleaned) 
+WSHFC_cleaned <- select_and_arrange_columns_function(WSHFC_cleaned)
 
 #set DataSource field
 WSHFC_cleaned$DataSource = "WSHFC"
