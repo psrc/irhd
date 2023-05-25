@@ -38,7 +38,8 @@ add_cleaned_addresses <- function(in.df) {
                             keep_parsed="no",
                             keep_ids=TRUE) %>%
       select(c('pm.id', 'pm.address')) %>%
-      mutate(pm.address = str_remove_all(pm.address, "\""))
+      mutate(pm.address = str_remove_all(pm.address, "\"")) %>%
+      mutate(pm.address = str_replace_all(pm.address, " ,", ","))
 
     out.df <- df_ident %>%
       left_join(df_parsed, by='pm.id') %>%
