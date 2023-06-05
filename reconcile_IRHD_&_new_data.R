@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-05-22
+# Last Updated: 2023-05-25
 #################################################################################
 
 `%not_in%` <- Negate(`%in%`)
@@ -81,6 +81,16 @@ WSHFC_raw$Address[WSHFC_raw$Address == '1724 E. 44th'] <- '1724 E 44th Street'
 WSHFC_raw$Address[WSHFC_raw$Address == '9225 Bayshore Drive NW'] <- '9225 Bay Shore Dr NW'
 WSHFC_raw$Address[WSHFC_raw$Address == '9239 Bayshore Dr NW'] <- '9239 Bay Shore Dr NW'
 
+# Clean Address field for matching
+remotes::install_github("slu-openGIS/postmastr")
+source("C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/address_match.R")
+library(stringr)
+
+WSHFC_raw$fulladdress <- str_c(WSHFC_raw$Address,', ',WSHFC_raw$City,', WA, ',WSHFC_raw$ZIP)
+WSHFC_raw <- add_cleaned_addresses(WSHFC_raw)
+
+str(WSHFC_raw)
+
 ## 4) Locate records in WSHFC not in IRHD (likely new records/properties) --------------------------------------------------------------------
 
 newWSHFC <- anti_join(WSHFC_raw, IRHD_raw, by = "PropertyID")
@@ -104,9 +114,10 @@ long_IRHD <- IRHD_raw %>%
                  'Manager',
                  'InServiceDate',
                  'ExpirationDate',
-                 'Address',
-                 'City',
-                 'ZIP',
+#                 'Address',
+#                 'City',
+#                 'ZIP',
+                 'cleaned.address',
                  'County',
                  'TotalUnits',
                  'TotalRestrictedUnits',
@@ -133,7 +144,7 @@ long_IRHD <- IRHD_raw %>%
                values_transform = list(variable_value=as.character))
 
 # Remove some fields that we don't need here
-long_IRHD <- long_IRHD[c(5,25,26)]
+long_IRHD %<>% select(c(PropertyID,variable_class,variable_value))
 
 # Pivot the mocked-up data to make it long and thin
 long_WSHFC <- WSHFC_raw %>%
@@ -144,9 +155,10 @@ long_WSHFC <- WSHFC_raw %>%
                  'Manager',
                  'InServiceDate',
                  'ExpirationDate',
-                 'Address',
-                 'City',
-                 'ZIP',
+#                 'Address',
+#                 'City',
+#                 'ZIP',
+                 'cleaned.address',
                  'County',
                  'TotalUnits',
                  'TotalRestrictedUnits',
@@ -173,7 +185,8 @@ long_WSHFC <- WSHFC_raw %>%
                values_transform = list(variable_value=as.character))
 
 # Remove some fields that we don't need here
-long_WSHFC <- long_WSHFC[c(2,4,5)]
+long_WSHFC %<>% select(c(PropertyID,variable_class,variable_value))
+
 
 # Compare the two data sets in long form to identify values that have been changed
 long_compare <- long_IRHD %>%
@@ -265,7 +278,7 @@ subset4 <- merge(subset4, subset4_sum, by = "PropertyID")
 rm(subset4_sum)
 
 # Rows with "diff" of 12% or less will be selected - we want the WSHFC data
-subset4$select <- ifelse(subset4$diff <= "0.12", subset4$variable_value.y, subset4$variable_value.x)
+subset4$select <- ifelse(subset4$diff <= "0.12", subset4$variable_value.y, "")
 
 # Rows where the sum.y is 0, we keep the sum.x data (if WSHFC data is 0, we keep IRHD data)
 subset4$select <- ifelse(subset4$sum.y == "0", subset4$variable_value.x, subset4$select)
