@@ -14,10 +14,14 @@ library(tidyr)
 library(readxl)
 library(data.table)
 library(magrittr)
+library(stringr)
+
 
 IRHD_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/1 Working Files/2021 IRHD v3 - ready4reconcilescript.csv"
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv"
 script_path <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/address_match.R"
+script_path <- "address_match.R"
+source(script_path)
 
 ## 1) load data ---------------------------------------------------------------------
 
@@ -59,7 +63,6 @@ IRHD_raw %<>% select(-c(Jurisdiction,CityFIPS))
 # Clean Address field for matching
 remotes::install_github("slu-openGIS/postmastr")
 source("C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/address_match.R")
-library(stringr)
 
 IRHD_raw$fulladdress <- str_c(IRHD_raw$Address,', ',IRHD_raw$City,', WA, ',IRHD_raw$ZIP)
 IRHD_raw <- add_cleaned_addresses(IRHD_raw)
