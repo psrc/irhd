@@ -29,6 +29,10 @@ add_cleaned_addresses <- function(in.df) {
     df_min <- pm_houseRange_parse(df_min)
     df_min <- pm_houseFrac_parse(df_min)
 
+    df_min <- df_min %>%
+      mutate(pm.address=str_replace_all(pm.address, "-", "")) %>%
+      mutate(pm.address=str_trim(pm.address, side="left"))
+
     df_min <- pm_streetDir_parse(df_min, dictionary=dirs)
     df_min <- pm_streetSuf_parse(df_min)
     df_min <- pm_street_parse(df_min)
