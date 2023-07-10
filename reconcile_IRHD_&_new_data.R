@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-05-25
+# Last Updated: 2023-07-07
 #################################################################################
 
 `%not_in%` <- Negate(`%in%`)
@@ -20,6 +20,7 @@ library(stringr)
 IRHD_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/1 Working Files/2021 IRHD v3 - ready4reconcilescript.csv"
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv"
 script_path <- "address_match.R"
+file_path <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/Export4review.csv"
 source(script_path)
 
 ## 1) load data ---------------------------------------------------------------------
@@ -64,9 +65,6 @@ IRHD_raw <- add_cleaned_addresses(IRHD_raw)
 
 str(IRHD_raw)
 
-
-
-
 ## 3) clean up some variables in WSHFC before joining --------------------------------------------------------------------
 
 IRHD_raw$Manager[IRHD_raw$Manager == 'HASCO'] <- 'Snohomish County Housing Authority'
@@ -98,8 +96,8 @@ newWSHFC <- anti_join(WSHFC_raw, IRHD_raw, by = "PropertyID")
 nomatchIRHD <- anti_join(IRHD_raw, WSHFC_raw, by = "PropertyID")
 nomatchIRHD <- nomatchIRHD %>% drop_na(PropertyID)
 
-# setwd("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Raw Data")
-# write.csv(nomatchIRHD, "nomatchIRHD.csv", row.names=FALSE)
+# 7/5/23 after confirmation from Commerce/WSHFC, these missing properties were accidentally excluded from the 2021 WSHFC dataset
+# KEEP all these records in IRHD. 2022 WSHFC dataset should include these. Next time, properties in 'nomatchIRHD' will need to be verified (did they go offline, etc?)
 
 ## 6) Identify matched records in IRHD and WSHFC --------------------------------------------------------------------
 
@@ -289,17 +287,53 @@ subset4 <- subset4[, -c(8,9,10)]
 selected <- rbind(selected, subset4)
 rm(subset4)
 
-# Subset 5) Address matching
+# Subset 5) If WSHFC field is blank, select IRHD data
+subset5 <- long_compare %>% subset((is.na(variable_value.y)| variable_value.y == ""), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset5$select <- subset5$variable_value.x
+long_compare <- anti_join(long_compare, subset5, by=c("ID"="ID")) # remove from long_compare
+selected <- subset5
+rm(subset5)
 
 
-
-
-# Subset 6) Various manual selections of the remaining rows
-subset6 <- long_compare %>% subset(str_detect(long_compare$variable_value.y, str_c("303 Howell Way & 417 - 3rd Avenue")), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+# Subset 6-10) Various manual selections of the remaining rows
+subset6 <- long_compare %>% subset(str_detect(long_compare$variable_value.y, str_c("303 Howell Way & 417 3rd Ave, Edmonds, WA 98020")), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
 subset6$select <- subset6$variable_value.x
 long_compare <- anti_join(long_compare, subset6, by=c("ID"="ID"))# remove from long_compare
 selected <- rbind(selected, subset6)
 rm(subset6)
+
+subset7 <- long_compare %>% subset(str_detect(long_compare$variable_value.y, " Rainier Ave, Everett, WA 98201"), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset7$select <- subset7$variable_value.x
+long_compare <- anti_join(long_compare, subset7, by=c("ID"="ID"))# remove from long_compare
+selected <- rbind(selected, subset7)
+rm(subset7)
+
+subset8 <- long_compare %>% subset(str_starts(long_compare$variable_value.y, ("[:alpha:]")), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset8$select <- subset8$variable_value.x
+long_compare <- anti_join(long_compare, subset8, by=c("ID"="ID"))# remove from long_compare
+selected <- rbind(selected, subset8)
+rm(subset8)
+
+subset9 <- long_compare %>% subset(str_detect(long_compare$PropertyID, "18015|18016|16100|16101|16402|16002|18092|16002"), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset9$select <- subset9$variable_value.x
+long_compare <- anti_join(long_compare, subset9, by=c("ID"="ID"))# remove from long_compare
+selected <- rbind(selected, subset9)
+rm(subset9)
+
+subset10 <- long_compare %>% subset(str_detect(long_compare$PropertyID, "18210|16044"), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset10$select <- subset10$variable_value.y
+long_compare <- anti_join(long_compare, subset10, by=c("ID"="ID"))# remove from long_compare
+selected <- rbind(selected, subset10)
+rm(subset10)
+
+
+# Export remaining records and contact the corresponding housing authority
+
+export_longcompare <- long_compare %>%
+  inner_join(IRHD_raw, by='PropertyID')
+
+export_longcompare = export_longcompare[,c("ID","PropertyID","variable_class","variable_value.x","variable_value.y","DataSource","ProjectName","Owner","InServiceDate", "County","cleaned.address")]
+write.csv(export_longcompare, file_path, row.names=FALSE)
 
 ## 8) Take "selected" data and update IRHD records, create IRHD_clean table --------------------------------------------------------------------
 
@@ -341,3 +375,6 @@ blankfill <- IRHD_clean %>%                                                     
 selected %<>% rows_patch(blankfill, by="PropertyID", unmatched="ignore")                           # replace NA in `selected` with values from `IRHD_clean`
 IRHD_clean %<>% .[selected, (shared_fields):=mget(paste0("i.", shared_fields)), on=.(PropertyID)]  # carry over all matching variables from selected
 #rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, wshfc_colClasses, WSHFC_cols, irhd_colClasses, long_compare) # Clean up
+
+# Add in new properties identified in newWSHFC
+#IRHD_clean <- rbind(IRHD_clean, newWSHFC)
