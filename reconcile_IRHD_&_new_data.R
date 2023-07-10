@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-07-07
+# Last Updated: 2023-07-10
 #################################################################################
 
 `%not_in%` <- Negate(`%in%`)
@@ -90,6 +90,7 @@ str(WSHFC_raw)
 ## 4) Locate records in WSHFC not in IRHD (likely new records/properties) --------------------------------------------------------------------
 
 newWSHFC <- anti_join(WSHFC_raw, IRHD_raw, by = "PropertyID")
+newWSHFC <- newWSHFC[ , !names(newWSHFC) %in% c("Farmworker")]
 
 ## 5) Locate records in IRHD not in WSHFC (No longer in WSHFC data, but once were?) --------------------------------------------------------------------
 
@@ -110,9 +111,6 @@ long_IRHD <- IRHD_raw %>%
                  'Manager',
                  'InServiceDate',
                  'ExpirationDate',
-#                 'Address',
-#                 'City',
-#                 'ZIP',
                  'cleaned.address',
                  'County',
                  'TotalUnits',
@@ -151,9 +149,6 @@ long_WSHFC <- WSHFC_raw %>%
                  'Manager',
                  'InServiceDate',
                  'ExpirationDate',
-#                 'Address',
-#                 'City',
-#                 'ZIP',
                  'cleaned.address',
                  'County',
                  'TotalUnits',
@@ -291,7 +286,7 @@ rm(subset4)
 subset5 <- long_compare %>% subset((is.na(variable_value.y)| variable_value.y == ""), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
 subset5$select <- subset5$variable_value.x
 long_compare <- anti_join(long_compare, subset5, by=c("ID"="ID")) # remove from long_compare
-selected <- subset5
+selected <- rbind(selected, subset5)
 rm(subset5)
 
 
@@ -377,4 +372,11 @@ IRHD_clean %<>% .[selected, (shared_fields):=mget(paste0("i.", shared_fields)), 
 #rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, wshfc_colClasses, WSHFC_cols, irhd_colClasses, long_compare) # Clean up
 
 # Add in new properties identified in newWSHFC
-#IRHD_clean <- rbind(IRHD_clean, newWSHFC)
+newWSHFC$HOMEcity <- as.character(newWSHFC$HOMEcity)
+newWSHFC$HOMEcounty <- as.character(newWSHFC$HOMEcounty)
+newWSHFC$HOMEstate <- as.character(newWSHFC$HOMEstate)
+
+IRHD_clean <- bind_rows(IRHD_clean, newWSHFC)
+
+# Create new UniqueID value for each new record
+#IRHD_clean$UniqueID[IRHD_clean$UniqueID == "" | is.na(IRHD_clean$UniqueID) ] <- "SH_72"
