@@ -372,11 +372,11 @@ IRHD_clean %<>% .[selected, (shared_fields):=mget(paste0("i.", shared_fields)), 
 #rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, wshfc_colClasses, WSHFC_cols, irhd_colClasses, long_compare) # Clean up
 
 # Add in new properties identified in newWSHFC
-newWSHFC$HOMEcity <- as.character(newWSHFC$HOMEcity)
-newWSHFC$HOMEcounty <- as.character(newWSHFC$HOMEcounty)
-newWSHFC$HOMEstate <- as.character(newWSHFC$HOMEstate)
-
-IRHD_clean <- bind_rows(IRHD_clean, newWSHFC)
+# newWSHFC$HOMEcity <- as.character(newWSHFC$HOMEcity)
+# newWSHFC$HOMEcounty <- as.character(newWSHFC$HOMEcounty)
+# newWSHFC$HOMEstate <- as.character(newWSHFC$HOMEstate)
+# 
+# IRHD_clean <- bind_rows(IRHD_clean, newWSHFC)
 
 # Create new UniqueID value for each new record
 #IRHD_clean$UniqueID[IRHD_clean$UniqueID == "" | is.na(IRHD_clean$UniqueID) ] <- "SH_72"
