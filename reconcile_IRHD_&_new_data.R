@@ -61,7 +61,7 @@ IRHD_raw %<>%  filter(!(UniqueID == "SH_7002")) %>% # Remove this record, keep S
 IRHD_raw %<>% select(-c(Jurisdiction,CityFIPS))
 
 IRHD_raw$fulladdress <- str_c(IRHD_raw$Address,', ',IRHD_raw$City,', WA, ',IRHD_raw$ZIP)
-IRHD_raw <- add_cleaned_addresses(IRHD_raw)
+IRHD_raw <- add_cleaned_addresses(IRHD_raw) %>% setDT()
 
 str(IRHD_raw)
 
@@ -369,14 +369,14 @@ blankfill <- IRHD_clean %>%                                                     
   .[!is.na(PropertyID) & UniqueID %not_in% (dupes), (colnames(.) %in% shared_fields), with=FALSE]  # include only common records, no duplicate keys
 selected %<>% rows_patch(blankfill, by="PropertyID", unmatched="ignore")                           # replace NA in `selected` with values from `IRHD_clean`
 IRHD_clean %<>% .[selected, (shared_fields):=mget(paste0("i.", shared_fields)), on=.(PropertyID)]  # carry over all matching variables from selected
-#rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, wshfc_colClasses, WSHFC_cols, irhd_colClasses, long_compare) # Clean up
+rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, wshfc_colClasses, WSHFC_cols, irhd_colClasses, long_compare) # Clean up
 
 # Add in new properties identified in newWSHFC
-# newWSHFC$HOMEcity <- as.character(newWSHFC$HOMEcity)
-# newWSHFC$HOMEcounty <- as.character(newWSHFC$HOMEcounty)
-# newWSHFC$HOMEstate <- as.character(newWSHFC$HOMEstate)
-# 
-# IRHD_clean <- bind_rows(IRHD_clean, newWSHFC)
+newWSHFC$HOMEcity <- as.character(newWSHFC$HOMEcity)
+newWSHFC$HOMEcounty <- as.character(newWSHFC$HOMEcounty)
+newWSHFC$HOMEstate <- as.character(newWSHFC$HOMEstate)
+
+IRHD_clean <- bind_rows(IRHD_clean, newWSHFC)
 
 # Create new UniqueID value for each new record
 #IRHD_clean$UniqueID[IRHD_clean$UniqueID == "" | is.na(IRHD_clean$UniqueID) ] <- "SH_72"
