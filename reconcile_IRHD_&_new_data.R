@@ -379,4 +379,8 @@ newWSHFC$HOMEstate <- as.character(newWSHFC$HOMEstate)
 IRHD_clean <- bind_rows(IRHD_clean, newWSHFC)
 
 # Create new UniqueID value for each new record
-#IRHD_clean$UniqueID[IRHD_clean$UniqueID == "" | is.na(IRHD_clean$UniqueID) ] <- "SH_72"
+IRHD_clean$tempID <- str_sub(IRHD_clean$UniqueID, start= -4)
+IRHD_clean$tempID[IRHD_clean$tempID == "" | is.na(IRHD_clean$tempID) ] <- paste(max(na.omit(IRHD_clean$tempID)) +1)
+IRHD_clean$UniqueID[IRHD_clean$UniqueID == "" | is.na(IRHD_clean$UniqueID) ] <- paste0("SH_", IRHD_clean$tempID)
+
+IRHD_clean <- subset(IRHD_clean, select = -c(tempID))
