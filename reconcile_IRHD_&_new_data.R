@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-07-10
+# Last Updated: 2023-07-27
 #################################################################################
 
 `%not_in%` <- Negate(`%in%`)
@@ -380,7 +380,7 @@ IRHD_clean <- bind_rows(IRHD_clean, newWSHFC)
 
 # Create new UniqueID value for each new record
 IRHD_clean$tempID <- str_sub(IRHD_clean$UniqueID, start= -4)
-IRHD_clean$tempID[IRHD_clean$tempID == "" | is.na(IRHD_clean$tempID) ] <- paste(max(na.omit(IRHD_clean$tempID)) +1)
-IRHD_clean$UniqueID[IRHD_clean$UniqueID == "" | is.na(IRHD_clean$UniqueID) ] <- paste0("SH_", IRHD_clean$tempID)
-
+Min <- as.numeric(max(na.omit(IRHD_clean$tempID)))+1
+Max <- Min + sum(is.na(IRHD_clean$tempID))-1
+IRHD_clean$UniqueID[IRHD_clean$UniqueID == "" | is.na(IRHD_clean$UniqueID)] <- paste0('SH_', Min:Max)
 IRHD_clean <- subset(IRHD_clean, select = -c(tempID))
