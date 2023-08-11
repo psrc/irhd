@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-07-27
+# Last Updated: 2023-08-11
 #################################################################################
 
 `%not_in%` <- Negate(`%in%`)
@@ -15,17 +15,18 @@ library(readxl)
 library(data.table)
 library(magrittr)
 library(stringr)
-
+library(dplyr)
 
 IRHD_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/1 Working Files/2021 IRHD v3 - ready4reconcilescript.csv"
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv"
 script_path <- "address_match.R"
-file_path <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/Export4review.csv"
+export_file_path <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/Export4review.csv"
+HASCO_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/PSRC_2021_IRHD_Snohomish_minor updates.csv"
 source(script_path)
 
 ## 1) load data ---------------------------------------------------------------------
 
-#load cleaned 2021 IRHD that has portfolios as of end of 2021
+# load cleaned 2021 IRHD that has portfolios as of end of 2021
 IRHD_raw <- fread(IRHD_path)
 
 # borrow datatype characterization from IRHD to apply to identical columns in WSHFC data
@@ -34,12 +35,16 @@ names(irhd_colClasses) <- colnames(IRHD_raw)
 WSHFC_cols = colnames(read.csv(WSHFC_path, nrows=1))
 wshfc_colClasses <- irhd_colClasses %>% .[names(.) %in% WSHFC_cols]
 
-#load cleaned WSHFC data that has portfolios as of end of 2021; apply datatypes to match
+# load cleaned WSHFC data that has portfolios as of end of 2021; apply datatypes to match
 WSHFC_raw <- fread(WSHFC_path, colClasses=wshfc_colClasses)
 
-#load cleaned KC data that has portfolios as of end of 2021
+# load cleaned KC data that has portfolios as of end of 2021
 # KC21raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/")
 
+# load cleaned HASCO data - only keep fields where we have new data (in the "Corrected" column)
+HASCO_raw <- fread(HASCO_updates_path)
+HASCO <- HASCO_raw %>%
+  drop_na(Corrected)
 
 ## 2) clean up fields in IRHD, limit to 3 counties, add/remove fields --------------------------------------------------------------------
 
@@ -290,7 +295,7 @@ selected <- rbind(selected, subset5)
 rm(subset5)
 
 
-# Subset 6-10) Various manual selections of the remaining rows
+# Subset 6-10) Various manual selections
 subset6 <- long_compare %>% subset(str_detect(long_compare$variable_value.y, str_c("303 Howell Way & 417 3rd Ave, Edmonds, WA 98020")), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
 subset6$select <- subset6$variable_value.x
 long_compare <- anti_join(long_compare, subset6, by=c("ID"="ID"))# remove from long_compare
@@ -321,14 +326,41 @@ long_compare <- anti_join(long_compare, subset10, by=c("ID"="ID"))# remove from 
 selected <- rbind(selected, subset10)
 rm(subset10)
 
-
 # Export remaining records and contact the corresponding housing authority
-
 export_longcompare <- long_compare %>%
   inner_join(IRHD_raw, by='PropertyID')
 
 export_longcompare = export_longcompare[,c("ID","PropertyID","variable_class","variable_value.x","variable_value.y","DataSource","ProjectName","Owner","InServiceDate", "County","cleaned.address")]
-write.csv(export_longcompare, file_path, row.names=FALSE)
+write.csv(export_longcompare, export_file_path, row.names=FALSE)
+
+# Subset 11-14) As directed by housing authorities
+#Everett Housing Authority
+subset11 <- long_compare %>% subset(str_detect(long_compare$PropertyID, "15905|15932|15961|16024|16593|17818|17820|17821|18107|18108|18109|18110|17749|17748"), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset11$select <- subset11$variable_value.x
+long_compare <- anti_join(long_compare, subset11, by=c("ID"="ID"))# remove from long_compare
+selected <- rbind(selected, subset11)
+rm(subset11)
+
+#Snohomish County Housing Authority
+subset12 <- long_compare %>%
+  inner_join(HASCO, join_by(PropertyID == PropertyID, variable_class == Variable))
+subset12$select <- subset12$Corrected
+subset12 <- subset12 %>% 
+  rename("ID" = "ID.x")
+subset12 %<>% select(c(ID,PropertyID,variable_class,variable_value.x,variable_value.y,match,select))
+long_compare <- anti_join(long_compare, subset12, by=c("ID"="ID"))# remove from long_compare
+selected <- rbind(selected, subset12)
+rm(subset12)
+
+#Tacoma Housing Authority
+
+#All remaining changes (select newer WSHFC data - assuming it is correct)
+subset14 <- long_compare %>% subset((long_compare$select == ""), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
+subset14$select <- subset14$variable_value.y
+long_compare <- anti_join(long_compare, subset14, by=c("ID"="ID"))# remove from long_compare
+selected <- rbind(selected, subset14)
+rm(subset14)
+
 
 ## 8) Take "selected" data and update IRHD records, create IRHD_clean table --------------------------------------------------------------------
 
@@ -340,6 +372,7 @@ class(selected$ProjectID) = "numeric"
 class(selected$TotalUnits) = "numeric"
 class(selected$TotalRestrictedUnits) = "numeric"
 class(selected$ZIP) = "numeric"
+class(selected$AMI20) = "numeric"
 class(selected$AMI30) = "numeric"
 class(selected$AMI35) = "numeric"
 class(selected$AMI40) = "numeric"
@@ -348,6 +381,7 @@ class(selected$AMI50) = "numeric"
 class(selected$AMI60) = "numeric"
 class(selected$AMI65) = "numeric"
 class(selected$AMI80) = "numeric"
+class(selected$Bedroom_0) = "numeric"
 class(selected$Bedroom_1) = "numeric"
 class(selected$Bedroom_2) = "numeric"
 class(selected$Bedroom_3) = "numeric"
@@ -380,7 +414,11 @@ IRHD_clean <- bind_rows(IRHD_clean, newWSHFC)
 
 # Create new UniqueID value for each new record
 IRHD_clean$tempID <- str_sub(IRHD_clean$UniqueID, start= -4)
-Min <- as.numeric(max(na.omit(IRHD_clean$tempID)))+1
-Max <- Min + sum(is.na(IRHD_clean$tempID))-1
-IRHD_clean$UniqueID[IRHD_clean$UniqueID == "" | is.na(IRHD_clean$UniqueID)] <- paste0('SH_', Min:Max)
+first <- as.numeric(max(na.omit(IRHD_clean$tempID)))+1
+last <- first + sum(is.na(IRHD_clean$tempID))-1
+IRHD_clean$UniqueID[IRHD_clean$UniqueID == "" | is.na(IRHD_clean$UniqueID)] <- paste0('SH_', first:last)
 IRHD_clean <- subset(IRHD_clean, select = -c(tempID))
+
+## 9) Join IRHD_clean table with cleaned data from King County --------------------------------------------------------------------
+IRHD_clean <- rbind(IRHD_clean, KC21raw)
+
