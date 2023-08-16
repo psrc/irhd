@@ -2,7 +2,7 @@
 # Title: Reconcile IRHD and new data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-12-07
-# Last Updated: 2023-08-11
+# Last Updated: 2023-08-16
 #################################################################################
 
 `%not_in%` <- Negate(`%in%`)
@@ -22,6 +22,8 @@ WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data
 script_path <- "address_match.R"
 export_file_path <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/Export4review.csv"
 HASCO_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/PSRC_2021_IRHD_Snohomish_minor updates.csv"
+THA_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/PSRC_2021_IRHD_Pierce_THA_minor updates.csv"
+KC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/King County Income-restricted Housing Database 2021.csv"
 source(script_path)
 
 ## 1) load data ---------------------------------------------------------------------
@@ -39,15 +41,20 @@ wshfc_colClasses <- irhd_colClasses %>% .[names(.) %in% WSHFC_cols]
 WSHFC_raw <- fread(WSHFC_path, colClasses=wshfc_colClasses)
 
 # load cleaned KC data that has portfolios as of end of 2021
-# KC21raw <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/")
+KC21raw <- fread(KC_path)
 
-# load cleaned HASCO data - only keep fields where we have new data (in the "Corrected" column)
+# load cleaned HASCO & THA data - only keep fields where we have new data (in the "Corrected" column)
 HASCO_raw <- fread(HASCO_updates_path)
 HASCO <- HASCO_raw %>%
   drop_na(Corrected)
 
-## 2) clean up fields in IRHD, limit to 3 counties, add/remove fields --------------------------------------------------------------------
+THA_raw <- fread(THA_updates_path)
+THA <- THA_raw %>%
+  drop_na(Corrected)
 
+## 2) clean up data --------------------------------------------------------------------
+
+# IRHD ---
 IRHD_raw %<>% .[County %in% c("Pierce", "Snohomish", "Kitsap")]                                    # King county handled separately
 
 IRHD_raw %<>% .[, grep("\\d+-\\d+%", colnames(.)):=NULL]                                           # Remove summary AMI fields
@@ -69,6 +76,28 @@ IRHD_raw$fulladdress <- str_c(IRHD_raw$Address,', ',IRHD_raw$City,', WA, ',IRHD_
 IRHD_raw <- add_cleaned_addresses(IRHD_raw) %>% setDT()
 
 str(IRHD_raw)
+
+# King County finalized 2021 data ---
+KC <- KC21raw
+KC$County <- "King"
+
+# Remove fields we don't need
+KC %<>% select(-c(unique_linking_ID,HITS_survey,GeoCode_Street,GeoCode_City,ProjectType))
+
+# Rename fields
+KC <- KC %>% 
+  rename("DataSource" = "DataSourceName",
+         "BedCount" = "GroupHomeOrBed",
+         "ZIP" = "GeoCode_Zip",
+         "fulladdress" = "Address_standardized",
+         "ExpirationDate" = "ExpirationYear",
+         "Owner" = "ProjectSponsor",
+         "Manager" = "ContactName",
+         "Site_type" = "PopulationServed",
+         "FundingSources" = "Funder",
+         "HOME" = "HOMEUnits")
+
+KC$cleaned.address <- str_c(KC$fulladdress,', ',KC$City,', WA, ',KC$ZIP)
 
 ## 3) clean up some variables in WSHFC before joining --------------------------------------------------------------------
 
@@ -353,6 +382,15 @@ selected <- rbind(selected, subset12)
 rm(subset12)
 
 #Tacoma Housing Authority
+subset13 <- long_compare %>%
+  inner_join(THA, join_by(PropertyID == PropertyID, variable_class == Variable))
+subset13$select <- subset13$Corrected
+subset13 <- subset13 %>% 
+  rename("ID" = "ID.x")
+subset13 %<>% select(c(ID,PropertyID,variable_class,variable_value.x,variable_value.y,match,select))
+long_compare <- anti_join(long_compare, subset13, by=c("ID"="ID"))# remove from long_compare
+selected <- rbind(selected, subset13)
+rm(subset13)
 
 #All remaining changes (select newer WSHFC data - assuming it is correct)
 subset14 <- long_compare %>% subset((long_compare$select == ""), select = c(ID, PropertyID, variable_class,variable_value.x,variable_value.y,match, select))
@@ -412,13 +450,13 @@ newWSHFC$HOMEstate <- as.character(newWSHFC$HOMEstate)
 
 IRHD_clean <- bind_rows(IRHD_clean, newWSHFC)
 
+## 9) Join IRHD_clean table with cleaned data from King County --------------------------------------------------------------------
+IRHD_clean <- rbind(IRHD_clean, KC,fill=TRUE)
+
 # Create new UniqueID value for each new record
 IRHD_clean$tempID <- str_sub(IRHD_clean$UniqueID, start= -4)
 first <- as.numeric(max(na.omit(IRHD_clean$tempID)))+1
 last <- first + sum(is.na(IRHD_clean$tempID))-1
 IRHD_clean$UniqueID[IRHD_clean$UniqueID == "" | is.na(IRHD_clean$UniqueID)] <- paste0('SH_', first:last)
 IRHD_clean <- subset(IRHD_clean, select = -c(tempID))
-
-## 9) Join IRHD_clean table with cleaned data from King County --------------------------------------------------------------------
-IRHD_clean <- rbind(IRHD_clean, KC21raw)
 
