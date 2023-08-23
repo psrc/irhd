@@ -1,13 +1,10 @@
-#################################################################################
-# Title: Reconcile IRHD and new data
-# Author: Eric Clute (with assistance from Jesse Warren, King County)
-# Date created: 2022-12-07
-# Last Updated: 2023-08-17
-#################################################################################
+# TITLE: Reconcile IRHD and new data
+# GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
+# DATA SOURCE: WSHFC, HASCO, THA, King County, EHA, PCHA, BHA, SHA, ARCH
+# DATE MODIFIED: 8.23.2023
+# AUTHOR: Eric Clute
 
-`%not_in%` <- Negate(`%in%`)
-
-## load packages-----------------------------------------------------------------
+## assumptions -------------------------
 
 library(tidyverse)
 library(tidyr)
@@ -26,7 +23,10 @@ THA_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files
 KC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/King County Income-restricted Housing Database 2021.csv"
 source(script_path)
 
-## 1) load data ---------------------------------------------------------------------
+`%not_in%` <- Negate(`%in%`)
+vintage_year <- "2021"
+
+## 1) load data -------------------------
 
 # load cleaned 2021 IRHD that has portfolios as of end of 2021
 IRHD_raw <- fread(IRHD_path)
@@ -52,7 +52,7 @@ THA_raw <- fread(THA_updates_path)
 THA <- THA_raw %>%
   drop_na(Corrected)
 
-## 2) clean up data --------------------------------------------------------------------
+## 2) clean up data -------------------------
 
 # IRHD ---
 IRHD <- IRHD_raw %>% .[County %in% c("Pierce", "Snohomish", "Kitsap")]                                    # King county handled separately
@@ -80,9 +80,11 @@ str(IRHD)
 # King County finalized 2021 data ---
 KC <- KC_raw
 KC$County <- "King"
+KC %<>% filter(KC$InServiceDate <= vintage_year | is.na(KC$InServiceDate))
 
 # Remove fields we don't need
-KC %<>% select(-c(unique_linking_ID,HITS_survey,GeoCode_Street,GeoCode_City,ProjectType))
+##(Policy field is blank, data currently stored in "FundingSource" - This may change!! Watch next year)
+KC %<>% select(-c(unique_linking_ID,HITS_survey,GeoCode_Street,GeoCode_City,ProjectType,Policy))
 
 # Rename fields to match IRHD
 KC <- KC %>% 
@@ -95,11 +97,12 @@ KC <- KC %>%
          "Manager" = "ContactName",
          "Site_Type" = "PopulationServed",
          "FundingSources" = "Funder",
-         "HOME" = "HOMEUnits")
+         "HOME" = "HOMEUnits",
+         "Policy" = "FundingSource")
 
 KC$cleaned.address <- str_c(KC$fulladdress,', ',KC$City,', WA, ',KC$ZIP)
 
-## 3) clean up some variables in WSHFC before joining --------------------------------------------------------------------
+## 3) clean up some variables in WSHFC before joining -------------------------
 
 IRHD$Manager[IRHD$Manager == 'HASCO'] <- 'Snohomish County Housing Authority'
 IRHD$Owner[IRHD$Owner == 'HASCO'] <- 'Snohomish County Housing Authority'
@@ -121,12 +124,12 @@ WSHFC_raw <- add_cleaned_addresses(WSHFC_raw)
 
 str(WSHFC_raw)
 
-## 4) Locate records in WSHFC not in IRHD (likely new records/properties) --------------------------------------------------------------------
+## 4) Locate records in WSHFC not in IRHD (likely new records/properties) -------------------------
 
 newWSHFC <- anti_join(WSHFC_raw, IRHD, by = "PropertyID")
 newWSHFC <- newWSHFC[ , !names(newWSHFC) %in% c("Farmworker")]
 
-## 5) Locate records in IRHD not in WSHFC (No longer in WSHFC data, but once were?) --------------------------------------------------------------------
+## 5) Locate records in IRHD not in WSHFC (No longer in WSHFC data, but once were?) -------------------------
 
 nomatchIRHD <- anti_join(IRHD, WSHFC_raw, by = "PropertyID")
 nomatchIRHD <- nomatchIRHD %>% drop_na(PropertyID)
@@ -134,7 +137,7 @@ nomatchIRHD <- nomatchIRHD %>% drop_na(PropertyID)
 # 7/5/23 after confirmation from Commerce/WSHFC, these missing properties were accidentally excluded from the 2021 WSHFC dataset
 # KEEP all these records in IRHD. 2022 WSHFC dataset should include these. Next time, properties in 'nomatchIRHD' will need to be verified (did they go offline, etc?)
 
-## 6) Identify matched records in IRHD and WSHFC --------------------------------------------------------------------
+## 6) Identify matched records in IRHD and WSHFC -------------------------
 
 # Pivot the IRHD data to make it long and thin
 long_IRHD <- IRHD %>%
@@ -220,7 +223,7 @@ long_compare <- long_IRHD %>%
   filter(match == "NO") %>%
   drop_na(variable_value.y)
 
-## 7) Identify which rows will be updated with new WSHFC data, or keep existing data --------------------------------------------------------------------
+## 7) Identify which rows will be updated with new WSHFC data, or keep existing data -------------------------
 
 # Create field to indicate which variable to use
 long_compare$select <- ""
@@ -400,8 +403,7 @@ selected <- rbind(selected, subset14)
 rm(subset14)
 
 
-## 8) Take "selected" data and update IRHD records, create IRHD_clean table --------------------------------------------------------------------
-
+## 8) Take "selected" data and update IRHD records, create IRHD_clean table -------------------------
 # Transform "selected" for updating existing IRHD
 selected <- selected %>% pivot_wider(id_cols = c('PropertyID'), names_from = 'variable_class', values_from = 'select') %>%
   setDT()
@@ -450,7 +452,7 @@ newWSHFC$HOMEstate <- as.character(newWSHFC$HOMEstate)
 
 IRHD_clean <- bind_rows(IRHD_clean, newWSHFC)
 
-## 9) Join IRHD_clean table with cleaned data from King County --------------------------------------------------------------------
+## 9) Join IRHD_clean table with cleaned data from King County -------------------------
 IRHD_clean <- rbind(IRHD_clean, KC,fill=TRUE)
 
 IRHD_clean %<>%
