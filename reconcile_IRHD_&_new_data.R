@@ -1,6 +1,6 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
-# DATA SOURCE: WSHFC, HASCO, THA, King County, EHA, PCHA, BHA, SHA, ARCH
+# DATA SOURCE: WSHFC, HASCO, THA, King County, EHA, PCHA, BHA
 # DATE MODIFIED: 8.23.2023
 # AUTHOR: Eric Clute
 
@@ -16,15 +16,61 @@ library(dplyr)
 
 IRHD_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/1 Working Files/2021 IRHD v3 - ready4reconcilescript.csv"
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv"
-script_path <- "address_match.R"
 export_4review_path <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/Export4review.csv"
 HASCO_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/PSRC_2021_IRHD_Snohomish_minor updates.csv"
 THA_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/PSRC_2021_IRHD_Pierce_THA_minor updates.csv"
 KC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/King County Income-restricted Housing Database 2021.csv"
+cleanpath <-  "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/2 FINAL/2021_IRHD_clean.csv"
+script_path <- "address_match.R"
 source(script_path)
 
 `%not_in%` <- Negate(`%in%`)
 vintage_year <- "2021"
+
+# functions ---
+# BY UNIT SIZE
+summary_county_bedrooms <- function(df){
+  IRHD_county_bedrooms <- df %>%
+    group_by(County) %>%
+    summarize(`studio and one bedrooms` = sum(na.omit(Bedroom_0 + Bedroom_1)),`two and three bedrooms` = sum(na.omit(Bedroom_2 + Bedroom_3)),`four bedrooms and more` = sum(na.omit(Bedroom_4 + Bedroom_5)))
+  
+  # add total column
+  IRHD_county_bedrooms <- IRHD_county_bedrooms %>%
+    bind_rows(summarise(., across(where(is.numeric), sum),
+                        across(where(is.character), ~'Total')))
+  # add total row
+  IRHD_county_bedrooms %<>% mutate(total=rowSums(select_if(., is.numeric)))
+  
+  #transpose
+  IRHD_county_bedrooms <- transpose(IRHD_county_bedrooms, keep.names = 'County')
+  
+  #fix column names
+  colnames(IRHD_county_bedrooms) <- IRHD_county_bedrooms[1,]
+  IRHD_county_bedrooms <- IRHD_county_bedrooms[-1, ] 
+  IRHD_county_bedrooms %<>% rename("unit_size" = "County")
+}
+
+# BY AMI LIMIT
+summary_county_ami <- function(df){
+  IRHD_county_ami <- df %>%
+    group_by(County) %>%
+    summarize(`less than 30` = sum(na.omit(AMI20 + AMI25 + AMI30)),`31 to 50` = sum(na.omit(AMI35 + AMI40 + AMI45 +AMI50)),`51 to 80` = sum(na.omit(AMI60 + AMI65 + AMI70 + AMI75 + AMI80)),`81 to 100` = sum(na.omit(AMI85 + AMI90 + AMI100)),`100 plus` = sum(na.omit(AMI120)),)
+  
+  # add total column
+  IRHD_county_ami <- IRHD_county_ami %>%
+    bind_rows(summarise(., across(where(is.numeric), sum),
+                        across(where(is.character), ~'Total')))
+  # add total row
+  IRHD_county_ami %<>% mutate(total=rowSums(select_if(., is.numeric)))
+  
+  #transpose
+  IRHD_county_ami <- transpose(IRHD_county_ami, keep.names = 'County')
+  
+  #fix column names
+  colnames(IRHD_county_ami) <- IRHD_county_ami[1,]
+  IRHD_county_ami <- IRHD_county_ami[-1, ] 
+  IRHD_county_ami %<>% rename("ami_limits" = "County")
+}
 
 ## 1) load data -------------------------
 
@@ -55,8 +101,7 @@ THA <- THA_raw %>%
 ## 2) clean up data -------------------------
 
 # IRHD ---
-IRHD <- IRHD_raw %>% .[County %in% c("Pierce", "Snohomish", "Kitsap")]                                    # King county handled separately
-
+IRHD <- IRHD_raw %>% .[County %in% c("Pierce", "Snohomish", "Kitsap")]                         # King county handled separately
 IRHD %<>% .[, grep("\\d+-\\d+%", colnames(.)):=NULL]                                           # Remove summary AMI fields
 
 # Create three new HOME fields
@@ -467,3 +512,18 @@ first <- as.numeric(max(na.omit(IRHD_clean$tempID)))+1
 last <- first + sum(is.na(IRHD_clean$tempID))-1
 IRHD_clean$UniqueID[IRHD_clean$UniqueID == "" | is.na(IRHD_clean$UniqueID)] <- paste0('SH_', first:last)
 IRHD_clean <- subset(IRHD_clean, select = -c(tempID))
+
+## 10) Summary table by County and AMI/Unit Size -------------------------
+IRHD_county_bedrooms <- summary_county_bedrooms(IRHD_clean)
+IRHD_county_ami <- summary_county_ami(IRHD_clean)
+
+## 11) Explore new units -------------------------
+new_IRHD <- IRHD_clean %>%
+  filter(IRHD_clean$InServiceDate == vintage_year)
+
+new_IRHD_county_bedrooms <- summary_county_bedrooms(new_IRHD)
+new_IRHD_county_ami <- summary_county_ami(new_IRHD)
+
+## 12) Clean up and export IRHD_clean -------------------------
+rm(export_longcompare,HASCO,HASCO_raw,IRHD,IRHD_raw,KC,KC_raw,newWSHFC,nomatchIRHD,selected,THA,THA_raw,WSHFC_raw)
+write.csv(IRHD_clean, cleanpath, row.names=FALSE)
