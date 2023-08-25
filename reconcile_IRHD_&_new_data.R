@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: WSHFC, HASCO, THA, King County, EHA, PCHA, BHA
-# DATE MODIFIED: 8.23.2023
+# DATE MODIFIED: 8.24.2023
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -13,6 +13,8 @@ library(data.table)
 library(magrittr)
 library(stringr)
 library(dplyr)
+library(odbc)
+library(DBI)
 
 IRHD_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/1 Working Files/2021 IRHD v3 - ready4reconcilescript.csv"
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv"
@@ -20,14 +22,40 @@ export_4review_path <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/
 HASCO_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/PSRC_2021_IRHD_Snohomish_minor updates.csv"
 THA_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/PSRC_2021_IRHD_Pierce_THA_minor updates.csv"
 KC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/King County Income-restricted Housing Database 2021.csv"
-cleanpath <-  "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/2 FINAL/2021_IRHD_clean.csv"
 script_path <- "address_match.R"
 source(script_path)
 
 `%not_in%` <- Negate(`%in%`)
 vintage_year <- "2021"
 
+elmer_connection <- dbConnect(odbc::odbc(),
+                              driver = "SQL Server",
+                              server = "AWS-PROD-SQL\\Sockeye",
+                              database = "Elmer",
+                              trusted_connection = "yes")
+
 # functions ---
+# BY COUNTY
+summary_county <- function(df){
+  new_IRHD_county <- df %>%
+    group_by(County) %>%
+    summarize("unit count" = sum(na.omit(TotalRestrictedUnits)))
+  
+  # add total column
+  new_IRHD_county <- new_IRHD_county %>%
+    bind_rows(summarise(., across(where(is.numeric), sum),
+                        across(where(is.character), ~'Total')))
+  
+  #transpose
+  new_IRHD_county <- transpose(new_IRHD_county, keep.names = 'County')
+  
+  #fix column names
+  colnames(new_IRHD_county) <- new_IRHD_county[1,]
+  new_IRHD_county <- new_IRHD_county[-1, ] 
+  new_IRHD_county %<>% rename(!!paste(vintage_year, "new units") := "County")
+  
+}
+
 # BY UNIT SIZE
 summary_county_bedrooms <- function(df){
   IRHD_county_bedrooms <- df %>%
@@ -48,6 +76,7 @@ summary_county_bedrooms <- function(df){
   colnames(IRHD_county_bedrooms) <- IRHD_county_bedrooms[1,]
   IRHD_county_bedrooms <- IRHD_county_bedrooms[-1, ] 
   IRHD_county_bedrooms %<>% rename("unit_size" = "County")
+
 }
 
 # BY AMI LIMIT
@@ -523,7 +552,9 @@ new_IRHD <- IRHD_clean %>%
 
 new_IRHD_county_bedrooms <- summary_county_bedrooms(new_IRHD)
 new_IRHD_county_ami <- summary_county_ami(new_IRHD)
+new_IRHD_county <- summary_county(new_IRHD)
 
-## 12) Clean up and export IRHD_clean -------------------------
-rm(export_longcompare,HASCO,HASCO_raw,IRHD,IRHD_raw,KC,KC_raw,newWSHFC,nomatchIRHD,selected,THA,THA_raw,WSHFC_raw)
-write.csv(IRHD_clean, cleanpath, row.names=FALSE)
+## 12) Export to Elmer IRHD_clean -------------------------
+table_id <- Id(schema = "stg", table = "irhd")
+dbWriteTable(conn = elmer_connection, name = table_id, value = IRHD_clean, overwrite = TRUE)
+dbDisconnect(elmer_connection)
