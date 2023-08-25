@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: WSHFC, HASCO, THA, King County, EHA, PCHA, BHA
-# DATE MODIFIED: 8.24.2023
+# DATE MODIFIED: 8.25.2023
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -16,7 +16,7 @@ library(dplyr)
 library(odbc)
 library(DBI)
 
-IRHD_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/1 Working Files/2021 IRHD v3 - ready4reconcilescript.csv"
+IRHD_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/Working Files/2021 IRHD v3 - ready4reconcilescript.csv"
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv"
 export_4review_path <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/Export4review.csv"
 HASCO_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/PSRC_2021_IRHD_Snohomish_minor updates.csv"
