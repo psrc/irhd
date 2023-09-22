@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: WSHFC, HASCO, THA, King County, EHA, PCHA, BHA
-# DATE MODIFIED: 8.25.2023
+# DATE MODIFIED: 9.21.2023
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -198,7 +198,7 @@ WSHFC_raw <- add_cleaned_addresses(WSHFC_raw)
 
 str(WSHFC_raw)
 
-## 4) Locate records in WSHFC not in IRHD (likely new records/properties) -------------------------
+## 4) Locate records in WSHFC_raw not in IRHD (likely new records/properties) -------------------------
 
 newWSHFC <- anti_join(WSHFC_raw, IRHD, by = "PropertyID")
 newWSHFC <- newWSHFC[ , !names(newWSHFC) %in% c("Farmworker")]
@@ -531,9 +531,6 @@ IRHD_clean <- rbind(IRHD_clean, KC,fill=TRUE)
 
 IRHD_clean %<>%
   relocate(AMI120, .after = AMI100)
-
-# Join nomatchIRHD to IRHD_clean (we have confirmed with Commerce that these were excluded in 2021 data pull - check these in 2022 vintage)
-IRHD_clean <- rbind(IRHD_clean, nomatchIRHD,fill=TRUE)
 
 # Create new UniqueID value for each new record
 IRHD_clean$tempID <- str_sub(IRHD_clean$UniqueID, start= -4)
