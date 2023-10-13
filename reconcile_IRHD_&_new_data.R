@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: WSHFC, HASCO, THA, King County, EHA, PCHA, BHA
-# DATE MODIFIED: 9.21.2023
+# DATE MODIFIED: 10.12.2023
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -28,11 +28,11 @@ source(script_path)
 `%not_in%` <- Negate(`%in%`)
 vintage_year <- "2021"
 
-elmer_connection <- dbConnect(odbc::odbc(),
-                              driver = "SQL Server",
-                              server = "AWS-PROD-SQL\\Sockeye",
-                              database = "Elmer",
-                              trusted_connection = "yes")
+# elmer_connection <- dbConnect(odbc::odbc(),
+#                               driver = "SQL Server",
+#                               server = "AWS-PROD-SQL\\Sockeye",
+#                               database = "Elmer",
+#                               trusted_connection = "yes")
 
 # functions ---
 # BY COUNTY
@@ -175,6 +175,11 @@ KC <- KC %>%
          "Policy" = "FundingSource")
 
 KC$cleaned.address <- str_c(KC$fulladdress,', ',KC$City,', WA, ',KC$ZIP)
+
+# Identify and remove duplicated UniqueID value
+dups <- filter(KC, UniqueID == "SH_5215")
+KC[1222,1]<-""
+rm(dups)
 
 ## 3) clean up some variables in WSHFC before joining -------------------------
 
