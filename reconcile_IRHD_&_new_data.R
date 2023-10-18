@@ -28,11 +28,11 @@ source(script_path)
 `%not_in%` <- Negate(`%in%`)
 vintage_year <- "2021"
 
-# elmer_connection <- dbConnect(odbc::odbc(),
-#                               driver = "SQL Server",
-#                               server = "AWS-PROD-SQL\\Sockeye",
-#                               database = "Elmer",
-#                               trusted_connection = "yes")
+elmer_connection <- dbConnect(odbc::odbc(),
+                              driver = "SQL Server",
+                              server = "AWS-PROD-SQL\\Sockeye",
+                              database = "Elmer",
+                              trusted_connection = "yes")
 
 # functions ---
 # BY COUNTY
@@ -80,11 +80,12 @@ summary_county_bedrooms <- function(df){
 }
 
 # BY AMI LIMIT
+
 summary_county_ami <- function(df){
   IRHD_county_ami <- df %>%
     group_by(County) %>%
-    summarize(`less than 30` = sum(na.omit(AMI20 + AMI25 + AMI30)),`31 to 50` = sum(na.omit(AMI35 + AMI40 + AMI45 +AMI50)),`51 to 80` = sum(na.omit(AMI60 + AMI65 + AMI70 + AMI75 + AMI80)),`81 to 100` = sum(na.omit(AMI85 + AMI90 + AMI100)),`100 plus` = sum(na.omit(AMI120)),)
-  
+    summarize(`less than 30` = sum(na.omit(AMI20 + AMI25 + AMI30)),`31 to 50` = sum(na.omit(AMI35 + AMI40 + AMI45 +AMI50)),`51 to 80` = sum(na.omit(AMI60 + AMI65 + AMI70 + AMI75 + AMI80)),`81 to 100` = sum(na.omit(AMI85 + AMI90 + AMI100)),`100 plus` = sum(na.omit(AMI120)),`unknown AMI` = sum(na.omit(AMI_Unknown)))
+
   # add total column
   IRHD_county_ami <- IRHD_county_ami %>%
     bind_rows(summarise(., across(where(is.numeric), sum),
@@ -178,7 +179,7 @@ KC$cleaned.address <- str_c(KC$fulladdress,', ',KC$City,', WA, ',KC$ZIP)
 
 # Identify and remove duplicated UniqueID value
 dups <- filter(KC, UniqueID == "SH_5215")
-KC[1222,1]<-""
+KC[1222,1]<-"SH_7234"
 rm(dups)
 
 ## 3) clean up some variables in WSHFC before joining -------------------------
@@ -544,11 +545,18 @@ last <- first + sum(is.na(IRHD_clean$tempID))-1
 IRHD_clean$UniqueID[IRHD_clean$UniqueID == "" | is.na(IRHD_clean$UniqueID)] <- paste0('SH_', first:last)
 IRHD_clean <- subset(IRHD_clean, select = -c(tempID))
 
-## 10) Summary table by County and AMI/Unit Size -------------------------
+anyDuplicated(IRHD_clean, by="UniqueID") #check for any duplicates - hopefully 0!
+
+## 10) Update AMI_Unknown and Bedroom_Unknown field ----------------------
+IRHD_clean$AMI_Unknown <- IRHD_clean$TotalRestrictedUnits - sum(IRHD_clean$AMI20, IRHD_clean$AMI25, IRHD_clean$AMI30, IRHD_clean$AMI35, IRHD_clean$AMI40, IRHD_clean$AMI45, IRHD_clean$AMI50, IRHD_clean$AMI60, IRHD_clean$AMI65, IRHD_clean$AMI70, IRHD_clean$AMI75, IRHD_clean$AMI80, IRHD_clean$AMI85, IRHD_clean$AMI90,  IRHD_clean$AMI100, IRHD_clean$AMI120, na.rm=T)
+
+
+
+## 11) Summary table by County and AMI/Unit Size -------------------------
 IRHD_county_bedrooms <- summary_county_bedrooms(IRHD_clean)
 IRHD_county_ami <- summary_county_ami(IRHD_clean)
 
-## 11) Explore new units -------------------------
+## 12) Explore new units -------------------------
 new_IRHD <- IRHD_clean %>%
   filter(IRHD_clean$InServiceDate == vintage_year)
 
@@ -556,7 +564,8 @@ new_IRHD_county_bedrooms <- summary_county_bedrooms(new_IRHD)
 new_IRHD_county_ami <- summary_county_ami(new_IRHD)
 new_IRHD_county <- summary_county(new_IRHD)
 
-## 12) Export to Elmer IRHD_clean -------------------------
-table_id <- Id(schema = "stg", table = "irhd")
-dbWriteTable(conn = elmer_connection, name = table_id, value = IRHD_clean, overwrite = TRUE)
-dbDisconnect(elmer_connection)
+## 13) Export to Elmer IRHD_clean -------------------------
+# table_id <- Id(schema = "stg", table = "irhd")
+# dbWriteTable(conn = elmer_connection, name = table_id, value = IRHD_clean, overwrite = TRUE)
+# dbExecute(conn=elmer_connection, statement='exec merge_irhd_properties 2021')
+# dbDisconnect(elmer_connection)
