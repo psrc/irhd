@@ -28,11 +28,11 @@ source(script_path)
 `%not_in%` <- Negate(`%in%`)
 vintage_year <- "2021"
 
-elmer_connection <- dbConnect(odbc::odbc(),
-                              driver = "SQL Server",
-                              server = "AWS-PROD-SQL\\Sockeye",
-                              database = "Elmer",
-                              trusted_connection = "yes")
+# elmer_connection <- dbConnect(odbc::odbc(),
+#                               driver = "SQL Server",
+#                               server = "AWS-PROD-SQL\\Sockeye",
+#                               database = "Elmer",
+#                               trusted_connection = "yes")
 
 # functions ---
 # BY COUNTY
@@ -60,7 +60,7 @@ summary_county <- function(df){
 summary_county_bedrooms <- function(df){
   IRHD_county_bedrooms <- df %>%
     group_by(County) %>%
-    summarize(`studio and one bedrooms` = sum(na.omit(Bedroom_0 + Bedroom_1)),`two and three bedrooms` = sum(na.omit(Bedroom_2 + Bedroom_3)),`four bedrooms and more` = sum(na.omit(Bedroom_4 + Bedroom_5)))
+    summarize(`studio and one bedrooms` = sum(na.omit(Bedroom_0 + Bedroom_1)),`two and three bedrooms` = sum(na.omit(Bedroom_2 + Bedroom_3)),`four bedrooms and more` = sum(na.omit(Bedroom_4 + Bedroom_5)),`Unknown Size` = sum(na.omit(Bedroom_Unknown)))
   
   # add total column
   IRHD_county_bedrooms <- IRHD_county_bedrooms %>%
@@ -548,9 +548,25 @@ IRHD_clean <- subset(IRHD_clean, select = -c(tempID))
 anyDuplicated(IRHD_clean, by="UniqueID") #check for any duplicates - hopefully 0!
 
 ## 10) Update AMI_Unknown and Bedroom_Unknown field ----------------------
-IRHD_clean$AMI_Unknown <- IRHD_clean$TotalRestrictedUnits - sum(IRHD_clean$AMI20, IRHD_clean$AMI25, IRHD_clean$AMI30, IRHD_clean$AMI35, IRHD_clean$AMI40, IRHD_clean$AMI45, IRHD_clean$AMI50, IRHD_clean$AMI60, IRHD_clean$AMI65, IRHD_clean$AMI70, IRHD_clean$AMI75, IRHD_clean$AMI80, IRHD_clean$AMI85, IRHD_clean$AMI90,  IRHD_clean$AMI100, IRHD_clean$AMI120, na.rm=T)
+# This code cleans up the AMI_Unknown field, so it adequately represents how many units are truly "unknown" in their AMI limits
+AMIcols<-as.character(quote(c(AMI20, AMI25, AMI30, AMI35, AMI40, AMI45, AMI50, AMI60, AMI65, AMI70, AMI75, AMI80, AMI85, AMI90,  AMI100, AMI120)))[-1]
 
+IRHD_clean %<>%
+  mutate(across(all_of(AMIcols), ~replace_na(.,0) )%>%
+           mutate(AMI_Unknown = TotalRestrictedUnits - rowSums(across(AMIcols))))
+IRHD_clean %<>% mutate(AMI_Unknown = if_else(AMI_Unknown < 0, 0, AMI_Unknown))
 
+sum(IRHD_clean$AMI20, IRHD_clean$AMI25, IRHD_clean$AMI30, IRHD_clean$AMI35, IRHD_clean$AMI40, IRHD_clean$AMI45, IRHD_clean$AMI50, IRHD_clean$AMI60, IRHD_clean$AMI65, IRHD_clean$AMI70, IRHD_clean$AMI75, IRHD_clean$AMI80, IRHD_clean$AMI85, IRHD_clean$AMI90,  IRHD_clean$AMI100, IRHD_clean$AMI120, na.rm = T)
+
+# This code cleans up the Bedroom_Unknown field, so it adequately represents how many units are truly "unknown" in their unit bedroom count
+sizecols<-as.character(quote(c(Bedroom_0,Bedroom_1,Bedroom_2,Bedroom_3,Bedroom_4,Bedroom_5)))[-1]
+
+IRHD_clean %<>%
+  mutate(across(all_of(sizecols), ~replace_na(.,0) )%>%
+           mutate(Bedroom_Unknown = TotalUnits - rowSums(across(sizecols))))
+IRHD_clean %<>% mutate(Bedroom_Unknown = if_else(Bedroom_Unknown < 0, 0, Bedroom_Unknown))
+
+sum(IRHD_clean$Bedroom_0,IRHD_clean$Bedroom_1,IRHD_clean$Bedroom_2,IRHD_clean$Bedroom_3,IRHD_clean$Bedroom_4,IRHD_clean$Bedroom_5, na.rm = T)
 
 ## 11) Summary table by County and AMI/Unit Size -------------------------
 IRHD_county_bedrooms <- summary_county_bedrooms(IRHD_clean)
@@ -565,7 +581,7 @@ new_IRHD_county_ami <- summary_county_ami(new_IRHD)
 new_IRHD_county <- summary_county(new_IRHD)
 
 ## 13) Export to Elmer IRHD_clean -------------------------
-# table_id <- Id(schema = "stg", table = "irhd")
-# dbWriteTable(conn = elmer_connection, name = table_id, value = IRHD_clean, overwrite = TRUE)
-# dbExecute(conn=elmer_connection, statement='exec merge_irhd_properties 2021')
-# dbDisconnect(elmer_connection)
+table_id <- Id(schema = "stg", table = "irhd")
+dbWriteTable(conn = elmer_connection, name = table_id, value = IRHD_clean, overwrite = TRUE)
+dbExecute(conn=elmer_connection, statement='exec merge_irhd_properties 2021')
+dbDisconnect(elmer_connection)
