@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: WSHFC, HASCO, THA, King County, EHA, PCHA, BHA
-# DATE MODIFIED: 10.12.2023
+# DATE MODIFIED: 10.20.2023
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -27,6 +27,7 @@ source(script_path)
 
 `%not_in%` <- Negate(`%in%`)
 vintage_year <- "2021"
+sql <- paste('exec irhd.merge_irhd_properties', vintage_year)
 
 # elmer_connection <- dbConnect(odbc::odbc(),
 #                               driver = "SQL Server",
@@ -583,5 +584,5 @@ new_IRHD_county <- summary_county(new_IRHD)
 ## 13) Export to Elmer IRHD_clean -------------------------
 table_id <- Id(schema = "stg", table = "irhd")
 dbWriteTable(conn = elmer_connection, name = table_id, value = IRHD_clean, overwrite = TRUE)
-dbExecute(conn=elmer_connection, statement='exec merge_irhd_properties 2021')
+dbExecute(conn=elmer_connection, statement=sql)
 dbDisconnect(elmer_connection)
