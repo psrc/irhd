@@ -14,6 +14,7 @@ library(stringr)
 library(dplyr)
 library(odbc)
 library(DBI)
+remotes::install_github("slu-openGIS/postmastr")
 
 elmer_connection <- dbConnect(odbc::odbc(),
                               driver = "SQL Server",
@@ -26,7 +27,8 @@ WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Data/WSHFC/WSHFC_2
 #HASCO_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/PSRC_2022_IRHD_Snohomish_minor updates.csv"
 #THA_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/PSRC_2022_IRHD_Pierce_THA_minor updates.csv"
 #KC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/King County Income-restricted Housing Database 2022.csv"
-script_path <- "address_match.R"
+script_path <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/address_match.R"
+
 source(script_path)
 
 `%not_in%` <- Negate(`%in%`)
@@ -177,11 +179,7 @@ WSHFC_raw$address[WSHFC_raw$address == '9225 Bayshore Drive NW'] <- '9225 Bay Sh
 WSHFC_raw$address[WSHFC_raw$address == '9239 Bayshore Dr NW'] <- '9239 Bay Shore Dr NW'
 
 # Clean address field for matching
-remotes::install_github("slu-openGIS/postmastr")
-source("C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/address_match.R")
-library(stringr)
-
-WSHFC_raw$full_address <- str_c(WSHFC_raw$address,', ',WSHFC_raw$city,', WA, ',WSHFC_raw$zip)
+WSHFC_raw$full_address <- str_c(WSHFC_raw$reported_address,', ',WSHFC_raw$city,', WA, ',WSHFC_raw$zip)
 WSHFC_raw <- add_cleaned_addresses(WSHFC_raw)
 
 str(WSHFC_raw)
@@ -189,7 +187,7 @@ str(WSHFC_raw)
 ## 4) Locate records in WSHFC_raw not in IRHD (likely new records/properties) -------------------------
 
 newWSHFC <- anti_join(WSHFC_raw, IRHD, by = "property_id")
-newWSHFC <- newWSHFC[ , !names(newWSHFC) %in% c("Farmworker")]
+newWSHFC <- newWSHFC[ , !names(newWSHFC) %in% c("farmworker")]
 
 ## 5) Locate records in IRHD not in WSHFC (No longer in WSHFC data, but once were?) -------------------------
 
