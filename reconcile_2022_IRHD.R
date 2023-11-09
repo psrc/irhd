@@ -27,9 +27,9 @@ WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Data/WSHFC/WSHFC_2
 #HASCO_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/PSRC_2022_IRHD_Snohomish_minor updates.csv"
 #THA_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/PSRC_2022_IRHD_Pierce_THA_minor updates.csv"
 #KC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/King County Income-restricted Housing Database 2022.csv"
-script_path <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/address_match.R"
+address_script <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/address_match.R"
 
-source(script_path)
+source(address_script)
 
 `%not_in%` <- Negate(`%in%`)
 vintage_year <- 2022
@@ -174,15 +174,7 @@ IRHD %<>% select(-c(created_at,updated_at,sro,shape))
 
 ## 3) clean up some variables in WSHFC before joining -------------------------
 
-WSHFC_raw$address[WSHFC_raw$address == '1724 E. 44th'] <- '1724 E 44th Street'
-WSHFC_raw$address[WSHFC_raw$address == '9225 Bayshore Drive NW'] <- '9225 Bay Shore Dr NW'
-WSHFC_raw$address[WSHFC_raw$address == '9239 Bayshore Dr NW'] <- '9239 Bay Shore Dr NW'
 
-# Clean address field for matching
-WSHFC_raw$full_address <- str_c(WSHFC_raw$reported_address,', ',WSHFC_raw$city,', WA, ',WSHFC_raw$zip)
-WSHFC_raw <- add_cleaned_addresses(WSHFC_raw)
-
-str(WSHFC_raw)
 
 ## 4) Locate records in WSHFC_raw not in IRHD (likely new records/properties) -------------------------
 

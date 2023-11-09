@@ -2,7 +2,7 @@
 # Title: 2022 IRHD, Cleaning WSHFC data and incorporating into existing database
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-11-30
-# Last Updated: 2023-10-26
+# Last Updated: 2023-11-09
 #################################################################################
 
 ## load packages-----------------------------------------------------------------
@@ -16,6 +16,10 @@ WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Data/WSHFC/"
 WSHFC_raw <- read_xlsx(paste0(WSHFC_path, "PSRC report for 2022.xlsx"))
 WSHFC_clean_file <- "WSHFC_2022_cleaned.csv"
 vintage_year = "2022"
+address_scrpt <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/address_match.R"
+
+remotes::install_github("slu-openGIS/postmastr")
+source(address_scrpt)
 
 ## 2) function --------------------------------------------------------------------
 
@@ -188,7 +192,7 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
          project_name = `Project Name`,
          property_id = `SiteKey`,
          property_name = `Site Name`,
-         owner = `Contractor/Owner Org`,
+         property_owner = `Contractor/Owner Org`,
          manager = `Property Management Org`,
          city = `City`,
          total_units = `Total Project Units`,
@@ -236,6 +240,16 @@ WSHFC_cleaned <- select_and_arrange_columns_function(WSHFC_cleaned)
 
 #set DataSource field
 WSHFC_cleaned$data_source = "WSHFC"
+
+WSHFC_cleaned$reported_address[WSHFC_cleaned$reported_address == '1724 E. 44th'] <- '1724 E 44th Street'
+WSHFC_cleaned$reported_address[WSHFC_cleaned$reported_address == '9225 Bayshore Drive NW'] <- '9225 Bay Shore Dr NW'
+WSHFC_cleaned$reported_address[WSHFC_cleaned$reported_address == '9239 Bayshore Dr NW'] <- '9239 Bay Shore Dr NW'
+
+# Clean address field for matching
+# WSHFC_cleaned$full_address <- str_c(WSHFC_cleaned$reported_address,', ',WSHFC_cleaned$city,', WA, ',WSHFC_cleaned$zip)
+# WSHFC_cleaned_test <- add_cleaned_addresses(WSHFC_cleaned)
+# 
+# str(WSHFC_cleaned)
 
 ## 5) save file --------------------------------------------------------------------
 
