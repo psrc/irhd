@@ -11,10 +11,10 @@ add_cleaned_addresses <- function(in.df) {
   tryCatch({
     cities <- pm_dictionary(type='city', filter="WA", case=c("title", "upper"), locale="us")
     in.df <- in.df %>%
-      mutate(fulladdress = str_replace_all(fulladdress, "N.W.", "NW"))
+      mutate(full_address = str_replace_all(full_address, "N.W.", "NW"))
 
-    df_ident <- pm_identify(in.df, var='fulladdress', locale="us")
-    df_min <- pm_prep(df_ident, var='fulladdress', type='street')
+    df_ident <- pm_identify(in.df, var='full_address', locale="us")
+    df_min <- pm_prep(df_ident, var='full_address', type='street')
 
     my_dirs <- pm_append("directional",
              input=c("N.W.", "N.E.", "S.W.", "S.E.", "N.W", "N.E", "S.W", "S.E"),
@@ -49,7 +49,7 @@ add_cleaned_addresses <- function(in.df) {
     out.df <- df_ident %>%
       left_join(df_parsed, by='pm.id') %>%
       select(-c('pm.id', 'pm.uid', 'pm.type')) %>%
-      rename('cleaned.address' = 'pm.address')
+      rename('cleaned_address' = 'pm.address')
 
     return(out.df)
   }, error = function(w) {
