@@ -4,9 +4,9 @@ library(tidyverse)
 
 add_cleaned_addresses <- function(in.df) {
   # Returns a data frame with a new column "cleaned.address"
-  # which is the formatted version of input column "fulladdress".
+  # which is the formatted version of input column "full_address".
   #
-  # Required parameter in.df must be a data frame containing a column "fulladdress"
+  # Required parameter in.df must be a data frame containing a column "full_address"
   # that contains full address info (house-number street, city-name, WA, ZIP Code).
   tryCatch({
     cities <- pm_dictionary(type='city', filter="WA", case=c("title", "upper"), locale="us")
