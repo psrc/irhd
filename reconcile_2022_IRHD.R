@@ -27,7 +27,7 @@ WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Data/WSHFC/WSHFC_2
 #HASCO_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/PSRC_2022_IRHD_Snohomish_minor updates.csv"
 #THA_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/PSRC_2022_IRHD_Pierce_THA_minor updates.csv"
 #KC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/King County Income-restricted Housing Database 2022.csv"
-address_script <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/address_match.R"
+address_script <- "C:/Users/eclute/GitHub/irhd/address_match.R"
 
 source(address_script)
 
@@ -84,7 +84,6 @@ summary_county_bedrooms <- function(df){
 }
 
 # BY AMI LIMIT
-
 summary_county_ami <- function(df){
   IRHD_county_ami <- df %>%
     group_by(county) %>%
@@ -141,6 +140,7 @@ IRHD <- IRHD_raw %>% filter(!(county == "King"))  # King county handled separate
 
 # Remove unneeded fields
 IRHD %<>% select(-c(created_at,updated_at,sro,shape))
+IRHD$property_id <- as.integer(IRHD$property_id)
 
 # King County finalized data ---
 # KC <- KC_raw
@@ -165,7 +165,7 @@ IRHD %<>% select(-c(created_at,updated_at,sro,shape))
 #          "HOME" = "HOMEUnits",
 #          "policy" = "FundingSource")
 # 
-# KC$cleaned.address <- str_c(KC$full_address,', ',KC$city,', WA, ',KC$zip)
+# KC$cleaned_address <- str_c(KC$full_address,', ',KC$city,', WA, ',KC$zip)
 
 # Identify and remove duplicated working_id value
 # dups <- filter(KC, working_id == "SH_5215")
@@ -179,15 +179,11 @@ IRHD %<>% select(-c(created_at,updated_at,sro,shape))
 ## 4) Locate records in WSHFC_raw not in IRHD (likely new records/properties) -------------------------
 
 newWSHFC <- anti_join(WSHFC_raw, IRHD, by = "property_id")
-newWSHFC <- newWSHFC[ , !names(newWSHFC) %in% c("farmworker")]
 
-## 5) Locate records in IRHD not in WSHFC (No longer in WSHFC data, but once were?) -------------------------
+## 5) Locate records in IRHD not in WSHFC (No longer in WSHFC data. Will need to be verified (did they go offline, etc?)) -------------------------
 
 nomatchIRHD <- anti_join(IRHD, WSHFC_raw, by = "property_id")
 nomatchIRHD <- nomatchIRHD %>% drop_na(property_id)
-
-# 7/5/23 after confirmation from Commerce/WSHFC, these missing properties were accidentally excluded from the 2021 WSHFC dataset
-# KEEP all these records in IRHD. 2022 WSHFC dataset should include these. Next time, properties in 'nomatchIRHD' will need to be verified (did they go offline, etc?)
 
 ## 6) Identify matched records in IRHD and WSHFC -------------------------
 
@@ -200,7 +196,7 @@ long_IRHD <- IRHD %>%
                  'manager',
                  'in_service_date',
                  'expiration_date',
-                 'cleaned.address',
+                 'cleaned_address',
                  'county',
                  'total_units',
                  'total_restricted_units',
@@ -238,7 +234,7 @@ long_WSHFC <- WSHFC_raw %>%
                  'manager',
                  'in_service_date',
                  'expiration_date',
-                 'cleaned.address',
+                 'cleaned_address',
                  'county',
                  'total_units',
                  'total_restricted_units',
@@ -414,7 +410,7 @@ rm(subset10)
 export_longcompare <- long_compare %>%
   inner_join(IRHD, by='property_id')
 
-export_longcompare = export_longcompare[,c("ID","property_id","variable_class","variable_value.x","variable_value.y","data_source","project_name","property_owner","in_service_date", "county","cleaned.address")]
+export_longcompare = export_longcompare[,c("ID","property_id","variable_class","variable_value.x","variable_value.y","data_source","project_name","property_owner","in_service_date", "county","cleaned_address")]
 write.csv(export_longcompare, export_4review_path, row.names=FALSE)
 
 # Subset 11-14) As directed by housing authorities

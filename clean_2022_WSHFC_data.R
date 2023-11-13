@@ -1,8 +1,8 @@
 #################################################################################
-# Title: 2022 IRHD, Cleaning WSHFC data and incorporating into existing database
+# Title: Cleaning 2022 WSHFC data
 # Author: Eric Clute (with assistance from Jesse Warren, King County)
 # Date created: 2022-11-30
-# Last Updated: 2023-11-09
+# Last Updated: 2023-11-13
 #################################################################################
 
 ## load packages-----------------------------------------------------------------
@@ -31,7 +31,7 @@ select_and_arrange_columns_function <- function(df){
                     "project_name",
                     "property_id",
                     "property_name",
-                    "owner",
+                    "property_owner",
                     "manager",
                     "in_service_date",
                     "expiration_date",
@@ -248,8 +248,6 @@ WSHFC_cleaned$reported_address[WSHFC_cleaned$reported_address == '9239 Bayshore 
 # Clean address field for matching
 WSHFC_cleaned$full_address <- str_c(WSHFC_cleaned$reported_address,', ',WSHFC_cleaned$city,', WA, ',WSHFC_cleaned$zip)
 WSHFC_cleaned_test <- add_cleaned_addresses(WSHFC_cleaned)
-#
-# str(WSHFC_cleaned)
 
 ## 5) save file --------------------------------------------------------------------
 

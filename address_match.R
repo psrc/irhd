@@ -3,7 +3,7 @@ library(tidyverse)
 
 
 add_cleaned_addresses <- function(in.df) {
-  # Returns a data frame with a new column "cleaned.address"
+  # Returns a data frame with a new column "cleaned_address"
   # which is the formatted version of input column "full_address".
   #
   # Required parameter in.df must be a data frame containing a column "full_address"
@@ -56,5 +56,3 @@ add_cleaned_addresses <- function(in.df) {
     print(glue::glue("A warning popped up in add_cleaned_addresses: {w}"))
   })
 }
-
-
