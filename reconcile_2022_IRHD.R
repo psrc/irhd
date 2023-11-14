@@ -196,7 +196,7 @@ long_IRHD <- IRHD %>%
                  'manager',
                  'in_service_date',
                  'expiration_date',
-                 'cleaned_address',
+                # 'cleaned_address',
                  'county',
                  'total_units',
                  'total_restricted_units',
@@ -234,7 +234,7 @@ long_WSHFC <- WSHFC_raw %>%
                  'manager',
                  'in_service_date',
                  'expiration_date',
-                 'cleaned_address',
+              #   'cleaned_address',
                  'county',
                  'total_units',
                  'total_restricted_units',
@@ -299,6 +299,7 @@ subset2 <- long_compare %>% subset((variable_class == "in_service_date" |
                                     variable_class == "HOMEcity"|
                                     variable_class == "HOMEcounty"|
                                     variable_class == "HOMEstate"|
+                                    variable_class == "expiration_date"|
                                     variable_class == "project_name"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset2$select <- subset2$variable_value.y
 long_compare <- anti_join(long_compare, subset2, by=c("ID"="ID")) # remove from long_compare
@@ -394,7 +395,7 @@ long_compare <- anti_join(long_compare, subset8, by=c("ID"="ID"))# remove from l
 selected <- rbind(selected, subset8)
 rm(subset8)
 
-subset9 <- long_compare %>% subset(str_detect(long_compare$property_id, "18015|18016|16100|16101|16402|16002|18092|16002"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+subset9 <- long_compare %>% subset(str_detect(long_compare$property_id, "18015|18016|16100|16101|16402|16002|18092|16002|17394|16408"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset9$select <- subset9$variable_value.x
 long_compare <- anti_join(long_compare, subset9, by=c("ID"="ID"))# remove from long_compare
 selected <- rbind(selected, subset9)
@@ -406,20 +407,20 @@ long_compare <- anti_join(long_compare, subset10, by=c("ID"="ID"))# remove from 
 selected <- rbind(selected, subset10)
 rm(subset10)
 
-# Export remaining records and contact the corresponding housing authority
-export_longcompare <- long_compare %>%
-  inner_join(IRHD, by='property_id')
-
-export_longcompare = export_longcompare[,c("ID","property_id","variable_class","variable_value.x","variable_value.y","data_source","project_name","property_owner","in_service_date", "county","cleaned_address")]
-write.csv(export_longcompare, export_4review_path, row.names=FALSE)
-
-# Subset 11-14) As directed by housing authorities
+# Subset 11-14) As directed by housing authorities -----------------------
 #Everett Housing Authority
 subset11 <- long_compare %>% subset(str_detect(long_compare$property_id, "15905|15932|15961|16024|16593|17818|17820|17821|18107|18108|18109|18110|17749|17748"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset11$select <- subset11$variable_value.x
 long_compare <- anti_join(long_compare, subset11, by=c("ID"="ID"))# remove from long_compare
 selected <- rbind(selected, subset11)
 rm(subset11)
+
+# Export remaining records and contact the corresponding housing authority
+export_longcompare <- long_compare %>%
+  inner_join(IRHD, by='property_id')
+
+export_longcompare = export_longcompare[,c("ID","property_id","variable_class","variable_value.x","variable_value.y","data_source","project_name","property_owner","in_service_date", "county","cleaned_address")]
+write.csv(export_longcompare, export_4review_path, row.names=FALSE)
 
 #Snohomish County Housing Authority
 subset12 <- long_compare %>%
