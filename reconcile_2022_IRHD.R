@@ -25,9 +25,9 @@ elmer_connection <- dbConnect(odbc::odbc(),
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Data/WSHFC/WSHFC_2022_cleaned.csv"
 export_4review_housingauthorities <- "C:/Users/eclute/GitHub/irhd/Export4review-housingauthorities.csv"
 export_4review_wshfc <- "C:/Users/eclute/GitHub/irhd/Export4review-wshfc.csv"
-#HASCO_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/PSRC_2022_IRHD_Snohomish_minor updates.csv"
-#THA_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/PSRC_2022_IRHD_Pierce_THA_minor updates.csv"
-#KC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/King County Income-restricted Housing Database 2022.csv"
+#HASCO_updates_path <- ""
+#THA_updates_path <- ""
+#KC_path <- ""
 address_script <- "C:/Users/eclute/GitHub/irhd/address_match.R"
 summary_func <- "C:/Users/eclute/GitHub/irhd/summary_func_irhd.R"
 
@@ -355,7 +355,7 @@ export_longcompare <- long_compare %>%
   inner_join(IRHD, by='property_id')
 
 export_longcompare = export_longcompare[,c("ID","property_id","variable_class","variable_value.x","variable_value.y","data_source","project_name","property_owner","in_service_date", "county","cleaned_address")]
-write.csv(export_longcompare, export_4review_housingauthorities, row.names=FALSE)
+#write.csv(export_longcompare, export_4review_housingauthorities, row.names=FALSE)
 
 #Snohomish County Housing Authority
 # subset12 <- long_compare %>%
