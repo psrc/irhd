@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: WSHFC, HASCO, THA, King County, EHA, PCHA, BHA
-# DATE MODIFIED: 10.26.2023
+# DATE MODIFIED: 11.14.2023
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -23,13 +23,16 @@ elmer_connection <- dbConnect(odbc::odbc(),
                               trusted_connection = "yes")
 
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Data/WSHFC/WSHFC_2022_cleaned.csv"
-#export_4review_path <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/Export4review.csv"
+export_4review_housingauthorities <- "C:/Users/eclute/GitHub/irhd/Export4review-housingauthorities.csv"
+export_4review_wshfc <- "C:/Users/eclute/GitHub/irhd/Export4review-wshfc.csv"
 #HASCO_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/PSRC_2022_IRHD_Snohomish_minor updates.csv"
 #THA_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/PSRC_2022_IRHD_Pierce_THA_minor updates.csv"
 #KC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review Files - Received/King County Income-restricted Housing Database 2022.csv"
 address_script <- "C:/Users/eclute/GitHub/irhd/address_match.R"
+summary_func <- "C:/Users/eclute/GitHub/irhd/summary_func_irhd.R"
 
 source(address_script)
+source(summary_func)
 
 `%not_in%` <- Negate(`%in%`)
 vintage_year <- 2022
@@ -38,76 +41,9 @@ last_vintage <- vintage_year - 1
 sql_import <- paste('irhd.properties')
 sql_export <- paste('exec irhd.merge_irhd_properties', vintage_year)
 
-# functions ---
-# BY COUNTY
-summary_county <- function(df){
-  new_IRHD_county <- df %>%
-    group_by(county) %>%
-    summarize("unit count" = sum(na.omit(total_restricted_units)))
-  
-  # add total column
-  new_IRHD_county <- new_IRHD_county %>%
-    bind_rows(summarise(., across(where(is.numeric), sum),
-                        across(where(is.character), ~'Total')))
-  
-  #transpose
-  new_IRHD_county <- transpose(new_IRHD_county, keep.names = 'county')
-  
-  #fix column names
-  colnames(new_IRHD_county) <- new_IRHD_county[1,]
-  new_IRHD_county <- new_IRHD_county[-1, ] 
-  new_IRHD_county %<>% rename(!!paste(vintage_year, "new units") := "county")
-  
-}
-
-# BY UNIT SIZE
-summary_county_bedrooms <- function(df){
-  IRHD_county_bedrooms <- df %>%
-    group_by(county) %>%
-    summarize(`studio and one bedrooms` = sum(na.omit(bedroom_0 + bedroom_1)),`two and three bedrooms` = sum(na.omit(bedroom_2 + bedroom_3)),`four bedrooms and more` = sum(na.omit(bedroom_4 + bedroom_5)),`Unknown Size` = sum(na.omit(bedroom_Unknown)))
-  
-  # add total column
-  IRHD_county_bedrooms <- IRHD_county_bedrooms %>%
-    bind_rows(summarise(., across(where(is.numeric), sum),
-                        across(where(is.character), ~'Total')))
-  # add total row
-  IRHD_county_bedrooms %<>% mutate(total=rowSums(select_if(., is.numeric)))
-  
-  #transpose
-  IRHD_county_bedrooms <- transpose(IRHD_county_bedrooms, keep.names = 'county')
-  
-  #fix column names
-  colnames(IRHD_county_bedrooms) <- IRHD_county_bedrooms[1,]
-  IRHD_county_bedrooms <- IRHD_county_bedrooms[-1, ] 
-  IRHD_county_bedrooms %<>% rename("unit_size" = "county")
-
-}
-
-# BY AMI LIMIT
-summary_county_ami <- function(df){
-  IRHD_county_ami <- df %>%
-    group_by(county) %>%
-    summarize(`less than 30` = sum(na.omit(ami_20 + ami_25 + ami_30)),`31 to 50` = sum(na.omit(ami_35 + ami_40 + ami_45 +ami_50)),`51 to 80` = sum(na.omit(ami_60 + ami_65 + ami_70 + ami_75 + ami_80)),`81 to 100` = sum(na.omit(ami_85 + ami_90 + ami_100)),`100 plus` = sum(na.omit(ami_120)),`unknown AMI` = sum(na.omit(ami_unknown)))
-
-  # add total column
-  IRHD_county_ami <- IRHD_county_ami %>%
-    bind_rows(summarise(., across(where(is.numeric), sum),
-                        across(where(is.character), ~'Total')))
-  # add total row
-  IRHD_county_ami %<>% mutate(total=rowSums(select_if(., is.numeric)))
-  
-  #transpose
-  IRHD_county_ami <- transpose(IRHD_county_ami, keep.names = 'county')
-  
-  #fix column names
-  colnames(IRHD_county_ami) <- IRHD_county_ami[1,]
-  IRHD_county_ami <- IRHD_county_ami[-1, ] 
-  IRHD_county_ami %<>% rename("ami_limits" = "county")
-}
-
 ## 1) load data -------------------------
 
-# load last vintage from Elmer
+# load all IRHD records from Elmer
 IRHD_raw <- dbReadTable(elmer_connection, SQL(sql_import))
 
 # borrow datatype characterization from IRHD to apply to identical columns in WSHFC data
@@ -172,20 +108,17 @@ IRHD$property_id <- as.integer(IRHD$property_id)
 # KC[1222,1]<-"SH_7234"
 # rm(dups)
 
-## 3) clean up some variables in WSHFC before joining -------------------------
-
-
-
-## 4) Locate records in WSHFC_raw not in IRHD (likely new records/properties) -------------------------
+## 2) Locate records in WSHFC_raw not in IRHD (likely new records/properties) -------------------------
 
 newWSHFC <- anti_join(WSHFC_raw, IRHD, by = "property_id")
 
-## 5) Locate records in IRHD not in WSHFC (No longer in WSHFC data. Will need to be verified (did they go offline, etc?)) -------------------------
+## 3) Locate records in IRHD not in WSHFC (No longer in WSHFC data. Will need to be verified (did they go offline, etc?)) -------------------------
 
 nomatchIRHD <- anti_join(IRHD, WSHFC_raw, by = "property_id")
 nomatchIRHD <- nomatchIRHD %>% drop_na(property_id)
+write.csv(nomatchIRHD, export_4review_wshfc, row.names=FALSE)
 
-## 6) Identify matched records in IRHD and WSHFC -------------------------
+## 4) Identify matched records in IRHD and WSHFC -------------------------
 
 # Pivot the IRHD data to make it long and thin
 long_IRHD <- IRHD %>%
@@ -271,7 +204,7 @@ long_compare <- long_IRHD %>%
   filter(match == "NO") %>%
   drop_na(variable_value.y)
 
-## 7) Identify which rows will be updated with new WSHFC data, or keep existing data -------------------------
+## 5) Identify which rows will be updated with new WSHFC data, or keep existing data -------------------------
 
 # Create field to indicate which variable to use
 long_compare$select <- ""
@@ -395,19 +328,21 @@ long_compare <- anti_join(long_compare, subset8, by=c("ID"="ID"))# remove from l
 selected <- rbind(selected, subset8)
 rm(subset8)
 
-subset9 <- long_compare %>% subset(str_detect(long_compare$property_id, "18015|18016|16100|16101|16402|16002|18092|16002|17394|16408"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+# Subset 9 selects the existing IRHD data over the new WSHFC data - selected since the new data appears "weird" or I confirmed the data online, etc. Somewhat arbitrary
+subset9 <- long_compare %>% subset(str_detect(long_compare$property_id, "18015|18016|16100|16101|16402|16002|18092|16002|17394|16408|17832|16445|16964"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset9$select <- subset9$variable_value.x
 long_compare <- anti_join(long_compare, subset9, by=c("ID"="ID"))# remove from long_compare
 selected <- rbind(selected, subset9)
 rm(subset9)
 
-subset10 <- long_compare %>% subset(str_detect(long_compare$property_id, "18210|16044"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+# Subset 10 selects the new WSHFC data over the existing IRHD data - selected since the new data appears "legit". Pretty darn arbitrary
+subset10 <- long_compare %>% subset(str_detect(long_compare$property_id, "18210|16044|16774|16725"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset10$select <- subset10$variable_value.y
 long_compare <- anti_join(long_compare, subset10, by=c("ID"="ID"))# remove from long_compare
 selected <- rbind(selected, subset10)
 rm(subset10)
 
-# Subset 11-14) As directed by housing authorities -----------------------
+# Subset 11-14) As directed by housing authorities 
 #Everett Housing Authority
 subset11 <- long_compare %>% subset(str_detect(long_compare$property_id, "15905|15932|15961|16024|16593|17818|17820|17821|18107|18108|18109|18110|17749|17748"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset11$select <- subset11$variable_value.x
@@ -420,29 +355,29 @@ export_longcompare <- long_compare %>%
   inner_join(IRHD, by='property_id')
 
 export_longcompare = export_longcompare[,c("ID","property_id","variable_class","variable_value.x","variable_value.y","data_source","project_name","property_owner","in_service_date", "county","cleaned_address")]
-write.csv(export_longcompare, export_4review_path, row.names=FALSE)
+write.csv(export_longcompare, export_4review_housingauthorities, row.names=FALSE)
 
 #Snohomish County Housing Authority
-subset12 <- long_compare %>%
-  inner_join(HASCO, join_by(property_id == property_id, variable_class == Variable))
-subset12$select <- subset12$Corrected
-subset12 <- subset12 %>% 
-  rename("ID" = "ID.x")
-subset12 %<>% select(c(ID,property_id,variable_class,variable_value.x,variable_value.y,match,select))
-long_compare <- anti_join(long_compare, subset12, by=c("ID"="ID"))# remove from long_compare
-selected <- rbind(selected, subset12)
-rm(subset12)
+# subset12 <- long_compare %>%
+#   inner_join(HASCO, join_by(property_id == property_id, variable_class == Variable))
+# subset12$select <- subset12$Corrected
+# subset12 <- subset12 %>% 
+#   rename("ID" = "ID.x")
+# subset12 %<>% select(c(ID,property_id,variable_class,variable_value.x,variable_value.y,match,select))
+# long_compare <- anti_join(long_compare, subset12, by=c("ID"="ID"))# remove from long_compare
+# selected <- rbind(selected, subset12)
+# rm(subset12)
 
 #Tacoma Housing Authority
-subset13 <- long_compare %>%
-  inner_join(THA, join_by(property_id == property_id, variable_class == Variable))
-subset13$select <- subset13$Corrected
-subset13 <- subset13 %>% 
-  rename("ID" = "ID.x")
-subset13 %<>% select(c(ID,property_id,variable_class,variable_value.x,variable_value.y,match,select))
-long_compare <- anti_join(long_compare, subset13, by=c("ID"="ID"))# remove from long_compare
-selected <- rbind(selected, subset13)
-rm(subset13)
+# subset13 <- long_compare %>%
+#   inner_join(THA, join_by(property_id == property_id, variable_class == Variable))
+# subset13$select <- subset13$Corrected
+# subset13 <- subset13 %>% 
+#   rename("ID" = "ID.x")
+# subset13 %<>% select(c(ID,property_id,variable_class,variable_value.x,variable_value.y,match,select))
+# long_compare <- anti_join(long_compare, subset13, by=c("ID"="ID"))# remove from long_compare
+# selected <- rbind(selected, subset13)
+# rm(subset13)
 
 #All remaining changes (select newer WSHFC data - assuming it is correct)
 subset14 <- long_compare %>% subset((long_compare$select == ""), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
@@ -452,7 +387,7 @@ selected <- rbind(selected, subset14)
 rm(subset14)
 
 
-## 8) Take "selected" data and update IRHD records, create IRHD_clean table -------------------------
+## 6) Take "selected" data and update IRHD records, create IRHD_clean table -------------------------
 # Transform "selected" for updating existing IRHD
 selected <- selected %>% pivot_wider(id_cols = c('property_id'), names_from = 'variable_class', values_from = 'select') %>%
   setDT()
@@ -495,13 +430,10 @@ IRHD_clean %<>% .[selected, (shared_fields):=mget(paste0("i.", shared_fields)), 
 rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, wshfc_colClasses, WSHFC_cols, irhd_colClasses, long_compare) # Clean up
 
 # Add in new properties identified in newWSHFC
-newWSHFC$HOMEcity <- as.character(newWSHFC$HOMEcity)
-newWSHFC$HOMEcounty <- as.character(newWSHFC$HOMEcounty)
-newWSHFC$HOMEstate <- as.character(newWSHFC$HOMEstate)
-
+IRHD_clean$property_id <- as.integer(IRHD_clean$property_id)
 IRHD_clean <- bind_rows(IRHD_clean, newWSHFC)
 
-## 9) Join IRHD_clean table with cleaned data from King County -------------------------
+## 7) Join IRHD_clean table with cleaned data from King County -------------------------
 IRHD_clean <- rbind(IRHD_clean, KC,fill=TRUE)
 
 IRHD_clean %<>%
@@ -516,7 +448,7 @@ IRHD_clean <- subset(IRHD_clean, select = -c(tempID))
 
 anyDuplicated(IRHD_clean, by="working_id") #check for any duplicates - hopefully 0!
 
-## 10) Update AMI_Unknown and Bedroom_Unknown field ----------------------
+## 8) Update AMI_Unknown and Bedroom_Unknown field ----------------------
 # This code cleans up the AMI_Unknown field, so it adequately represents how many units are truly "unknown" in their AMI limits
 AMIcols<-as.character(quote(c(ami_20, ami_25, ami_30, ami_35, ami_40, ami_45, ami_50, ami_60, ami_65, ami_70, ami_75, ami_80, ami_85, ami_90,  ami_100, ami_120)))[-1]
 
@@ -537,11 +469,11 @@ IRHD_clean %<>% mutate(bedroom_unknown = if_else(bedroom_unknown < 0, 0, bedroom
 
 sum(IRHD_clean$bedroom_0,IRHD_clean$bedroom_1,IRHD_clean$bedroom_2,IRHD_clean$bedroom_3,IRHD_clean$bedroom_4,IRHD_clean$bedroom_5, na.rm = T)
 
-## 11) Summary table by County and AMI/Unit Size -------------------------
+## 9) Summary table by County and AMI/Unit Size -------------------------
 IRHD_county_bedrooms <- summary_county_bedrooms(IRHD_clean)
 IRHD_county_ami <- summary_county_ami(IRHD_clean)
 
-## 12) Explore new units -------------------------
+## 10) Explore new units -------------------------
 new_IRHD <- IRHD_clean %>%
   filter(IRHD_clean$in_service_date == vintage_year)
 
@@ -549,7 +481,7 @@ new_IRHD_county_bedrooms <- summary_county_bedrooms(new_IRHD)
 new_IRHD_county_ami <- summary_county_ami(new_IRHD)
 new_IRHD_county <- summary_county(new_IRHD)
 
-## 13) Export to Elmer IRHD_clean -------------------------
+## 11) Export to Elmer IRHD_clean -------------------------
 # table_id <- Id(schema = "stg", table = "irhd")
 # dbWriteTable(conn = elmer_connection, name = table_id, value = IRHD_clean, overwrite = TRUE)
 # dbExecute(conn=elmer_connection, statement=sql_export)
