@@ -1,8 +1,8 @@
 #################################################################################
 # Title: Cleaning 2022 WSHFC data
-# Author: Eric Clute (with assistance from Jesse Warren, King County)
+# Author: Eric Clute
 # Date created: 2022-11-30
-# Last Updated: 2023-11-13
+# Last Updated: 2023-11-16
 #################################################################################
 
 ## load packages-----------------------------------------------------------------
@@ -14,12 +14,11 @@ library(janitor)
 
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Data/WSHFC/"
 WSHFC_raw <- read_xlsx(paste0(WSHFC_path, "PSRC report for 2022.xlsx"))
-WSHFC_clean_file <- "WSHFC_2022_cleaned.csv"
-vintage_year = "2022"
-address_scrpt <- "./address_match.R"
+vintage_year_cleaning_script = "2022"
+address_script <- "./address_match.R"
 
 remotes::install_github("slu-openGIS/postmastr")
-source(address_scrpt)
+source(address_script)
 
 ## 2) function --------------------------------------------------------------------
 
@@ -160,14 +159,14 @@ WSHFC_cleaned %>%
   group_by(`Site Name`, Address) %>%
   mutate(n = n()) %>%
   filter(n > 1) %>%
-  arrange(`Project Name`, `Site Name`, Address) %>%
-  view()
+  arrange(`Project Name`, `Site Name`, Address)# %>%
+ # view()
 
 # ------- DATA FILTER #5 ------- Small edits/checks
 
 #Filter by InServiceDate - select only records in this vintage year or earlier
 WSHFC_cleaned <- WSHFC_cleaned %>%
-  filter(`First Credit Year or C of O's` <= vintage_year)
+  filter(`First Credit Year or C of O's` <= vintage_year_cleaning_script)
 
 #Consolidate SRO and STUDIO into one column
 WSHFC_cleaned$STUDIO = WSHFC_cleaned$SRO + WSHFC_cleaned$STUDIO
@@ -247,9 +246,6 @@ WSHFC_cleaned$reported_address[WSHFC_cleaned$reported_address == '9239 Bayshore 
 
 # Clean address field for matching
 WSHFC_cleaned$full_address <- str_c(WSHFC_cleaned$reported_address,', ',WSHFC_cleaned$city,', WA, ',WSHFC_cleaned$zip)
-WSHFC_cleaned_test <- add_cleaned_addresses(WSHFC_cleaned)
+#WSHFC_cleaned_test <- add_cleaned_addresses(WSHFC_cleaned)
 
-## 5) save file --------------------------------------------------------------------
-
-#save cleaned file
-write_csv(WSHFC_cleaned, paste0(WSHFC_path, WSHFC_clean_file))
+rm(WSHFC_raw, WSHFC_path, select_and_arrange_columns_function,vintage_year_cleaning_script)
