@@ -244,8 +244,14 @@ WSHFC_cleaned$reported_address[WSHFC_cleaned$reported_address == '1724 E. 44th']
 WSHFC_cleaned$reported_address[WSHFC_cleaned$reported_address == '9225 Bayshore Drive NW'] <- '9225 Bay Shore Dr NW'
 WSHFC_cleaned$reported_address[WSHFC_cleaned$reported_address == '9239 Bayshore Dr NW'] <- '9239 Bay Shore Dr NW'
 
-# Clean address field for matching
+#clean address field for matching
 WSHFC_cleaned$full_address <- str_c(WSHFC_cleaned$reported_address,', ',WSHFC_cleaned$city,', WA, ',WSHFC_cleaned$zip)
 #WSHFC_cleaned_test <- add_cleaned_addresses(WSHFC_cleaned)
+
+#set proper data types for matching
+WSHFC_cleaned$data_source <- as.character(WSHFC_cleaned$data_source)
+WSHFC_cleaned$project_id <- as.character(WSHFC_cleaned$project_id)
+WSHFC_cleaned$property_id <- as.character(WSHFC_cleaned$property_id)
+WSHFC_cleaned$in_service_date <- as.character(WSHFC_cleaned$in_service_date)
 
 rm(WSHFC_raw, WSHFC_path, select_and_arrange_columns_function,vintage_year_cleaning_script)

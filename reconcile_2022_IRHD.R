@@ -68,15 +68,6 @@ IRHD_raw <- IRHD_raw %>% filter(data_year == last_vintage)
 IRHD <- IRHD_raw %>% filter(!(county == "King")) # King county handled separately
 IRHD %<>% select(-c(created_at,updated_at,sro,shape)) # Remove unneeded fields
 
-# borrow field types from IRHD for identical fields in WSHFC 
-irhd_colClasses = sapply(IRHD_raw, class)
-names(irhd_colClasses) <- colnames(IRHD_raw)
-WSHFC_cols = colnames(WSHFC_cleaned)
-wshfc_colClasses <- irhd_colClasses %>% .[names(.) %in% WSHFC_cols]
-
-# apply field types for identical fields
-#WSHFC_cleaned1 <- fread(WSHFC_cleaned, colClasses=wshfc_colClasses) #Isn't working right yet, tbd!
-
 ## 3) Locate records in WSHFC not in IRHD (likely new records/properties) -------------------------
 
 new_wshfc <- anti_join(WSHFC_cleaned, IRHD, by = "property_id")
@@ -183,7 +174,7 @@ rectify <- tibble::rowid_to_column(rectify, "ID")
 subset1 <- rectify %>% subset((is.na(variable_value.x)| variable_value.x == ""), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset1$select <- subset1$variable_value.y
 rectify <- anti_join(rectify, subset1, by=c("ID"="ID")) # remove from rectify
-selected <- subset1
+updates <- subset1
 rm(subset1)
 
 # Subset 2) Below fields - select WHSFC data
@@ -205,14 +196,14 @@ subset2 <- rectify %>% subset((variable_class == "in_service_date" |
                                     variable_class == "project_name"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset2$select <- subset2$variable_value.y
 rectify <- anti_join(rectify, subset2, by=c("ID"="ID")) # remove from rectify
-selected <- rbind(selected, subset2)
+updates <- rbind(updates, subset2)
 rm(subset2)
 
 # Subset 3) select addresses that have "multiple" in the field - use IRHD address
 subset3 <- rectify %>% subset(str_detect(rectify$variable_value.y, str_c("Mu")), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset3$select <- subset3$variable_value.x
 rectify <- anti_join(rectify, subset3, by=c("ID"="ID"))# remove from rectify
-selected <- rbind(selected, subset3)
+updates <- rbind(updates, subset3)
 rm(subset3)
 
 # Subset 4) select all AMI/Unit count/Bedroom size data, identify small numeric changes
@@ -267,14 +258,14 @@ subset4 <- subset4 %>% subset(!(select == ""), select = c(ID, property_id, varia
 rectify <- anti_join(rectify, subset4, by=c("ID"="ID")) # remove from rectify
 
 subset4 <- subset4[, -c(8,9,10)]
-selected <- rbind(selected, subset4)
+updates <- rbind(updates, subset4)
 rm(subset4)
 
 # Subset 5) If WSHFC field is blank, select IRHD data
 subset5 <- rectify %>% subset((is.na(variable_value.y)| variable_value.y == ""), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset5$select <- subset5$variable_value.x
 rectify <- anti_join(rectify, subset5, by=c("ID"="ID")) # remove from rectify
-selected <- rbind(selected, subset5)
+updates <- rbind(updates, subset5)
 rm(subset5)
 
 
@@ -282,33 +273,33 @@ rm(subset5)
 subset6 <- rectify %>% subset(str_detect(rectify$variable_value.y, str_c("303 Howell Way & 417 3rd Ave, Edmonds, WA 98020")), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset6$select <- subset6$variable_value.x
 rectify <- anti_join(rectify, subset6, by=c("ID"="ID"))# remove from rectify
-selected <- rbind(selected, subset6)
+updates <- rbind(updates, subset6)
 rm(subset6)
 
 subset7 <- rectify %>% subset(str_detect(rectify$variable_value.y, " Rainier Ave, Everett, WA 98201"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset7$select <- subset7$variable_value.x
 rectify <- anti_join(rectify, subset7, by=c("ID"="ID"))# remove from rectify
-selected <- rbind(selected, subset7)
+updates <- rbind(updates, subset7)
 rm(subset7)
 
 subset8 <- rectify %>% subset(str_starts(rectify$variable_value.y, ("[:alpha:]")), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset8$select <- subset8$variable_value.x
 rectify <- anti_join(rectify, subset8, by=c("ID"="ID"))# remove from rectify
-selected <- rbind(selected, subset8)
+updates <- rbind(updates, subset8)
 rm(subset8)
 
 # Subset 9 selects the existing IRHD data over the new WSHFC data - selected since the new data appears "weird" or I confirmed the data online, etc. Somewhat arbitrary
 subset9 <- rectify %>% subset(str_detect(rectify$property_id, "18015|18016|16100|16101|16402|16002|18092|16002|17394|16408|17832|16445|16964"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset9$select <- subset9$variable_value.x
 rectify <- anti_join(rectify, subset9, by=c("ID"="ID"))# remove from rectify
-selected <- rbind(selected, subset9)
+updates <- rbind(updates, subset9)
 rm(subset9)
 
 # Subset 10 selects the new WSHFC data over the existing IRHD data - selected since the new data appears "legit". Pretty darn arbitrary
 subset10 <- rectify %>% subset(str_detect(rectify$property_id, "18210|16044|16774|16725"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset10$select <- subset10$variable_value.y
 rectify <- anti_join(rectify, subset10, by=c("ID"="ID"))# remove from rectify
-selected <- rbind(selected, subset10)
+updates <- rbind(updates, subset10)
 rm(subset10)
 
 # Subset 11-14) As directed by housing authorities 
@@ -316,7 +307,7 @@ rm(subset10)
 subset11 <- rectify %>% subset(str_detect(rectify$property_id, "15905|15932|15961|16024|16593|17818|17820|17821|18107|18108|18109|18110|17749|17748"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset11$select <- subset11$variable_value.x
 rectify <- anti_join(rectify, subset11, by=c("ID"="ID"))# remove from rectify
-selected <- rbind(selected, subset11)
+updates <- rbind(updates, subset11)
 rm(subset11)
 
 # Export remaining records and contact the corresponding housing authority
@@ -334,7 +325,7 @@ rectify_export = rectify_export[,c("ID","property_id","variable_class","variable
 #   rename("ID" = "ID.x")
 # subset12 %<>% select(c(ID,property_id,variable_class,variable_value.x,variable_value.y,match,select))
 # rectify <- anti_join(rectify, subset12, by=c("ID"="ID"))# remove from rectify
-# selected <- rbind(selected, subset12)
+# updates <- rbind(updates, subset12)
 # rm(subset12)
 
 #Tacoma Housing Authority
@@ -345,58 +336,58 @@ rectify_export = rectify_export[,c("ID","property_id","variable_class","variable
 #   rename("ID" = "ID.x")
 # subset13 %<>% select(c(ID,property_id,variable_class,variable_value.x,variable_value.y,match,select))
 # rectify <- anti_join(rectify, subset13, by=c("ID"="ID"))# remove from rectify
-# selected <- rbind(selected, subset13)
+# updates <- rbind(updates, subset13)
 # rm(subset13)
 
 #All remaining changes (select newer WSHFC data - assuming it is correct)
 subset14 <- rectify %>% subset((rectify$select == ""), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset14$select <- subset14$variable_value.y
 rectify <- anti_join(rectify, subset14, by=c("ID"="ID"))# remove from rectify
-selected <- rbind(selected, subset14)
+updates <- rbind(updates, subset14)
 rm(subset14)
 
 
-## 7) Take "selected" data and update IRHD records, create IRHD_clean table -------------------------
-# Transform "selected" for updating existing IRHD
-selected <- selected %>% pivot_wider(id_cols = c('property_id'), names_from = 'variable_class', values_from = 'select') %>%
+## 7) Take "updates" data and update IRHD records, create IRHD_clean table -------------------------
+# Transform "updates" for updating existing IRHD
+updates <- updates %>% pivot_wider(id_cols = c('property_id'), names_from = 'variable_class', values_from = 'select') %>%
   setDT()
 
-class(selected$project_id) = "numeric"
-class(selected$total_units) = "numeric"
-class(selected$total_restricted_units) = "numeric"
-class(selected$zip) = "numeric"
-class(selected$ami_20) = "numeric"
-class(selected$ami_30) = "numeric"
-class(selected$ami_35) = "numeric"
-class(selected$ami_40) = "numeric"
-class(selected$ami_45) = "numeric"
-class(selected$ami_50) = "numeric"
-class(selected$ami_60) = "numeric"
-class(selected$ami_65) = "numeric"
-class(selected$ami_80) = "numeric"
-class(selected$bedroom_0) = "numeric"
-class(selected$bedroom_1) = "numeric"
-class(selected$bedroom_2) = "numeric"
-class(selected$bedroom_3) = "numeric"
-class(selected$bedroom_4) = "numeric"
-class(selected$bedroom_unknown) = "numeric"
-class(selected$bed_count) = "numeric"
-class(selected$senior) = "numeric"
-class(selected$homeless) = "numeric"
-class(selected$disabled) = "numeric"
+class(updates$project_id) = "character"
+class(updates$total_units) = "numeric"
+class(updates$total_restricted_units) = "numeric"
+class(updates$zip) = "numeric"
+class(updates$ami_20) = "numeric"
+class(updates$ami_30) = "numeric"
+class(updates$ami_35) = "numeric"
+class(updates$ami_40) = "numeric"
+class(updates$ami_45) = "numeric"
+class(updates$ami_50) = "numeric"
+class(updates$ami_60) = "numeric"
+class(updates$ami_65) = "numeric"
+class(updates$ami_80) = "numeric"
+class(updates$bedroom_0) = "numeric"
+class(updates$bedroom_1) = "numeric"
+class(updates$bedroom_2) = "numeric"
+class(updates$bedroom_3) = "numeric"
+class(updates$bedroom_4) = "numeric"
+class(updates$bedroom_unknown) = "numeric"
+class(updates$bed_count) = "numeric"
+class(updates$senior) = "numeric"
+class(updates$homeless) = "numeric"
+class(updates$disabled) = "numeric"
 
 # Create new clean IRHD file
 IRHD_clean <- copy(IRHD)
 
-# Update records as determined by the "selected" dataframe
-shared_fields <- intersect(names(selected), names(IRHD_clean))                                     # fields in common
-dupes <- IRHD_clean[duplicated(property_id), cbind(.SD[1], number=.N), by=property_id] %>%           # duplicates (to exclude)
+# Update records as determined by the "updates" dataframe
+shared_fields <- intersect(names(updates), names(IRHD_clean))                                        # fields in common
+dupes <- IRHD_clean[duplicated(property_id), cbind(.SD[1], number=.N), by=property_id] %>%            # duplicates (to exclude)
   pull(working_id)
-blankfill <- IRHD_clean %>%                                                                        # create IRHD data that matches fields from selected
+blankfill <- IRHD_clean %>%                                                                           # create IRHD data that matches fields from updates
   .[!is.na(property_id) & working_id %not_in% (dupes), (colnames(.) %in% shared_fields), with=FALSE]  # include only common records, no duplicate keys
-selected %<>% rows_patch(blankfill, by="property_id", unmatched="ignore")                           # replace NA in `selected` with values from `IRHD_clean`
-IRHD_clean %<>% .[selected, (shared_fields):=mget(paste0("i.", shared_fields)), on=.(property_id)]  # carry over all matching variables from selected
-rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, wshfc_colClasses, WSHFC_cols, irhd_colClasses, rectify) # Clean up
+updates %<>% rows_patch(blankfill, by="property_id", unmatched="ignore")                             # replace NA in `updates` with values from `IRHD_clean`
+IRHD_clean %<>% .[updates, (shared_fields):=mget(paste0("i.", shared_fields)), on=.(property_id)]    # carry over all matching variables from updates
+rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, rectify)                                   # Clean up
 
 # Add in new properties identified in new_wshfc
 IRHD_clean$property_id <- as.integer(IRHD_clean$property_id)
