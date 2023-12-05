@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: WSHFC, HASCO, THA, King County, EHA, PCHA, BHA
-# DATE MODIFIED: 11.16.2023
+# DATE MODIFIED: 12.01.2023
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -66,7 +66,7 @@ source(wshfc_clean_script)
 
 IRHD_raw <- IRHD_raw %>% filter(data_year == last_vintage)
 IRHD <- IRHD_raw %>% filter(!(county == "King")) # King county handled separately
-IRHD %<>% select(-c(created_at,updated_at,sro,shape)) # Remove unneeded fields
+IRHD %<>% select(-c(created_at,updated_at,sro,shape,irhd_property_id)) # Remove unneeded fields
 
 ## 3) Locate records in WSHFC not in IRHD (likely new records/properties) -------------------------
 
@@ -355,7 +355,8 @@ updates <- updates %>% pivot_wider(id_cols = c('property_id'), names_from = 'var
 class(updates$project_id) = "character"
 class(updates$total_units) = "numeric"
 class(updates$total_restricted_units) = "numeric"
-class(updates$zip) = "numeric"
+class(updates$in_service_date) = "character"
+class(updates$zip) = "character"
 class(updates$ami_20) = "numeric"
 class(updates$ami_30) = "numeric"
 class(updates$ami_35) = "numeric"
@@ -365,6 +366,8 @@ class(updates$ami_50) = "numeric"
 class(updates$ami_60) = "numeric"
 class(updates$ami_65) = "numeric"
 class(updates$ami_80) = "numeric"
+class(updates$market_rate) = "numeric"
+class(updates$manager_unit) = "numeric"
 class(updates$bedroom_0) = "numeric"
 class(updates$bedroom_1) = "numeric"
 class(updates$bedroom_2) = "numeric"
@@ -373,11 +376,15 @@ class(updates$bedroom_4) = "numeric"
 class(updates$bedroom_unknown) = "numeric"
 class(updates$bed_count) = "numeric"
 class(updates$senior) = "numeric"
+class(updates$HOMEcity) = "numeric"
+class(updates$HOMEcounty) = "numeric"
+class(updates$HOMEstate) = "numeric"
 class(updates$homeless) = "numeric"
 class(updates$disabled) = "numeric"
 
 # Create new clean IRHD file
 IRHD_clean <- copy(IRHD)
+setDT(IRHD_clean)
 
 # Update records as determined by the "updates" dataframe
 shared_fields <- intersect(names(updates), names(IRHD_clean))                                        # fields in common
@@ -390,15 +397,16 @@ IRHD_clean %<>% .[updates, (shared_fields):=mget(paste0("i.", shared_fields)), o
 rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, rectify)                                   # Clean up
 
 # Add in new properties identified in new_wshfc
-IRHD_clean$property_id <- as.integer(IRHD_clean$property_id)
+#class(IRHD_clean$property_id) = "character"
 IRHD_clean <- bind_rows(IRHD_clean, new_wshfc)
 
 ## 8) Join IRHD_clean table with cleaned data from King County -------------------------
-IRHD_clean <- rbind(IRHD_clean, KC_cleaned,fill=TRUE)
+# IRHD_clean <- rbind(IRHD_clean, KC_cleaned,fill=TRUE)
+# 
+# IRHD_clean %<>%
+#   relocate(ami_120, .after = ami_100)
 
-IRHD_clean %<>%
-  relocate(ami_120, .after = ami_100)
-
+## 10) Final Cleanup ----------------------
 # Create new working_id value for each new record
 IRHD_clean$tempID <- str_sub(IRHD_clean$working_id, start= -4)
 first <- as.numeric(max(na.omit(IRHD_clean$tempID)))+1
@@ -406,15 +414,27 @@ last <- first + sum(is.na(IRHD_clean$tempID))-1
 IRHD_clean$working_id[IRHD_clean$working_id == "" | is.na(IRHD_clean$working_id)] <- paste0('SH_', first:last)
 IRHD_clean <- subset(IRHD_clean, select = -c(tempID))
 
-anyDuplicated(IRHD_clean, by="working_id") #check for any duplicates - hopefully 0!
+#check for any duplicates - hopefully 0!
+dups <- IRHD_clean %>%
+  unique() %>%
+  group_by(`property_id`) %>%
+  mutate(n = n()) %>%
+  filter(n > 1)
+dups <- filter(dups, !is.na(property_id))
 
-## 9) Update AMI_Unknown and Bedroom_Unknown field ----------------------
+dups <- IRHD_clean %>%
+  unique() %>%
+  group_by(`working_id`) %>%
+  mutate(n = n()) %>%
+  filter(n > 1)
+dups <- filter(dups, !is.na(working_id))
+
 # This code cleans up the AMI_Unknown field, so it adequately represents how many units are truly "unknown" in their AMI limits
 AMIcols<-as.character(quote(c(ami_20, ami_25, ami_30, ami_35, ami_40, ami_45, ami_50, ami_60, ami_65, ami_70, ami_75, ami_80, ami_85, ami_90,  ami_100, ami_120)))[-1]
 
 IRHD_clean %<>%
   mutate(across(all_of(AMIcols), ~replace_na(.,0) )%>%
-           mutate(ami_unknown = total_restricted_units - rowSums(across(AMIcols))))
+           mutate(ami_unknown = total_restricted_units - rowSums(across(all_of(AMIcols)))))
 IRHD_clean %<>% mutate(ami_unknown = if_else(ami_unknown < 0, 0, ami_unknown))
 
 sum(IRHD_clean$ami_20, IRHD_clean$ami_25, IRHD_clean$ami_30, IRHD_clean$ami_35, IRHD_clean$ami_40, IRHD_clean$ami_45, IRHD_clean$ami_50, IRHD_clean$ami_60, IRHD_clean$ami_65, IRHD_clean$ami_70, IRHD_clean$ami_75, IRHD_clean$ami_80, IRHD_clean$ami_85, IRHD_clean$ami_90,  IRHD_clean$ami_100, IRHD_clean$ami_120, na.rm = T)
@@ -424,10 +444,13 @@ sizecols<-as.character(quote(c(bedroom_0,bedroom_1,bedroom_2,bedroom_3,bedroom_4
 
 IRHD_clean %<>%
   mutate(across(all_of(sizecols), ~replace_na(.,0) )%>%
-           mutate(bedroom_unknown = total_units - rowSums(across(sizecols))))
+           mutate(bedroom_unknown = total_units - rowSums(across(all_of(sizecols)))))
 IRHD_clean %<>% mutate(bedroom_unknown = if_else(bedroom_unknown < 0, 0, bedroom_unknown))
 
 sum(IRHD_clean$bedroom_0,IRHD_clean$bedroom_1,IRHD_clean$bedroom_2,IRHD_clean$bedroom_3,IRHD_clean$bedroom_4,IRHD_clean$bedroom_5, na.rm = T)
+
+# Cleans up data year field
+IRHD_clean$data_year = vintage_year
 
 ## 10) Summary table by County and AMI/Unit Size -------------------------
 IRHD_county_bedrooms <- summary_county_bedrooms(IRHD_clean)

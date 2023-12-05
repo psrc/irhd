@@ -18,11 +18,11 @@ library(DBI)
 
 IRHD_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Data/Working Files/2021 IRHD v3 - ready4reconcilescript.csv"
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv"
-export_4review_path <- "C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/Export4review.csv"
+export_4review_path <- "C:/Users/eclute/GitHub/irhd/Export4review.csv"
 HASCO_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/PSRC_2021_IRHD_Snohomish_minor updates.csv"
 THA_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/PSRC_2021_IRHD_Pierce_THA_minor updates.csv"
 KC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/King County Income-restricted Housing Database 2021.csv"
-script_path <- "address_match.R"
+script_path <- "./address_match.R"
 source(script_path)
 
 `%not_in%` <- Negate(`%in%`)
@@ -148,7 +148,7 @@ IRHD %<>%  filter(!(UniqueID == "SH_7002")) %>% # Remove this record, keep SH_60
 # Remove Jurisdiction and cityFIPS fields, we will calculate these in Elmer going forward
 IRHD %<>% select(-c(Jurisdiction,CityFIPS))
 
-IRHD$fulladdress <- str_c(IRHD$Address,', ',IRHD$City,', WA, ',IRHD$ZIP)
+IRHD$full_address <- str_c(IRHD$Address,', ',IRHD$City,', WA, ',IRHD$ZIP)
 IRHD <- add_cleaned_addresses(IRHD) %>% setDT()
 
 str(IRHD)
@@ -167,7 +167,7 @@ KC <- KC %>%
   rename("DataSource" = "DataSourceName",
          "BedCount" = "GroupHomeOrBed",
          "ZIP" = "GeoCode_Zip",
-         "fulladdress" = "Address_standardized",
+         "full_address" = "Address_standardized",
          "ExpirationDate" = "ExpirationYear",
          "Owner" = "ProjectSponsor",
          "Manager" = "ContactName",
@@ -176,7 +176,7 @@ KC <- KC %>%
          "HOME" = "HOMEUnits",
          "Policy" = "FundingSource")
 
-KC$cleaned.address <- str_c(KC$fulladdress,', ',KC$City,', WA, ',KC$ZIP)
+KC$cleaned_address <- str_c(KC$full_address,', ',KC$City,', WA, ',KC$ZIP)
 
 # Identify and remove duplicated UniqueID value
 dups <- filter(KC, UniqueID == "SH_5215")
@@ -197,10 +197,9 @@ WSHFC_raw$Address[WSHFC_raw$Address == '9239 Bayshore Dr NW'] <- '9239 Bay Shore
 
 # Clean Address field for matching
 remotes::install_github("slu-openGIS/postmastr")
-source("C:/Users/eclute/OneDrive - Puget Sound Regional Council/Documents/GitHub/irhd/address_match.R")
 library(stringr)
 
-WSHFC_raw$fulladdress <- str_c(WSHFC_raw$Address,', ',WSHFC_raw$City,', WA, ',WSHFC_raw$ZIP)
+WSHFC_raw$full_address <- str_c(WSHFC_raw$Address,', ',WSHFC_raw$City,', WA, ',WSHFC_raw$ZIP)
 WSHFC_raw <- add_cleaned_addresses(WSHFC_raw)
 
 str(WSHFC_raw)
@@ -229,7 +228,7 @@ long_IRHD <- IRHD %>%
                  'Manager',
                  'InServiceDate',
                  'ExpirationDate',
-                 'cleaned.address',
+                 'cleaned_address',
                  'County',
                  'TotalUnits',
                  'TotalRestrictedUnits',
@@ -267,7 +266,7 @@ long_WSHFC <- WSHFC_raw %>%
                  'Manager',
                  'InServiceDate',
                  'ExpirationDate',
-                 'cleaned.address',
+                 'cleaned_address',
                  'County',
                  'TotalUnits',
                  'TotalRestrictedUnits',
@@ -443,7 +442,7 @@ rm(subset10)
 export_longcompare <- long_compare %>%
   inner_join(IRHD, by='PropertyID')
 
-export_longcompare = export_longcompare[,c("ID","PropertyID","variable_class","variable_value.x","variable_value.y","DataSource","ProjectName","Owner","InServiceDate", "County","cleaned.address")]
+export_longcompare = export_longcompare[,c("ID","PropertyID","variable_class","variable_value.x","variable_value.y","DataSource","ProjectName","Owner","InServiceDate", "County","cleaned_address")]
 write.csv(export_longcompare, export_4review_path, row.names=FALSE)
 
 # Subset 11-14) As directed by housing authorities
