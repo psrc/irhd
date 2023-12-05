@@ -81,7 +81,6 @@ summary_county_bedrooms <- function(df){
 }
 
 # BY AMI LIMIT
-
 summary_county_ami <- function(df){
   IRHD_county_ami <- df %>%
     group_by(County) %>%

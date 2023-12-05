@@ -10,10 +10,13 @@ library(tidyverse)
 library(readxl)
 library(janitor)
 
-## 1) load data ---------------------------------------------------------------------
+setwd("C:/Users/eclute/GitHub/irhd")
 
+#file paths
 J_drive_raw_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Raw Data/"
+J_drive_cleaned_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/"
 
+## 1) load data ---------------------------------------------------------------------
 original_WSHFC_raw <- read_xlsx(paste0(J_drive_raw_files_filepath, "PSRC Report_WSHFC_12-2021.xlsx"))
 
 ## 2) create functions --------------------------------------------------------------------
@@ -225,9 +228,5 @@ WSHFC_cleaned <- select_and_arrange_columns_function(WSHFC_cleaned)
 WSHFC_cleaned$DataSource = "WSHFC"
 
 ## 4) save files --------------------------------------------------------------------
-
-#save J: drive cleaned files location filepath
-J_drive_cleaned_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/"
-
-#save cleaned files
+#save cleaned file
 write_csv(WSHFC_cleaned, paste0(J_drive_cleaned_files_filepath, "WSHFC_2021_cleaned.csv"))

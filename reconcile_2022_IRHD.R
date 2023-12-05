@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: WSHFC, HASCO, THA, King County, EHA, PCHA, BHA
-# DATE MODIFIED: 12.01.2023
+# DATE MODIFIED: 12.04.2023
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -89,7 +89,7 @@ long_IRHD <- IRHD %>%
                  'manager',
                  'in_service_date',
                  'expiration_date',
-                # 'cleaned_address',
+                 'cleaned_address',
                  'county',
                  'total_units',
                  'total_restricted_units',
@@ -127,7 +127,7 @@ long_WSHFC <- WSHFC_cleaned %>%
                  'manager',
                  'in_service_date',
                  'expiration_date',
-              #   'cleaned_address',
+                 'cleaned_address',
                  'county',
                  'total_units',
                  'total_restricted_units',
@@ -289,14 +289,14 @@ updates <- rbind(updates, subset8)
 rm(subset8)
 
 # Subset 9 selects the existing IRHD data over the new WSHFC data - selected since the new data appears "weird" or I confirmed the data online, etc. Somewhat arbitrary
-subset9 <- rectify %>% subset(str_detect(rectify$property_id, "18015|18016|16100|16101|16402|16002|18092|16002|17394|16408|17832|16445|16964"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+subset9 <- rectify %>% subset(str_detect(rectify$property_id, "18015|18016|16100|16101|16402|16002|18092|16002|17394|16408|17832|16445|16964|18086|17951|18181|16269|16794|18320|16707"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset9$select <- subset9$variable_value.x
 rectify <- anti_join(rectify, subset9, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset9)
 rm(subset9)
 
 # Subset 10 selects the new WSHFC data over the existing IRHD data - selected since the new data appears "legit". Pretty darn arbitrary
-subset10 <- rectify %>% subset(str_detect(rectify$property_id, "18210|16044|16774|16725"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+subset10 <- rectify %>% subset(str_detect(rectify$property_id, "18210|16044|16774|16725|16158"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset10$select <- subset10$variable_value.y
 rectify <- anti_join(rectify, subset10, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset10)
@@ -397,16 +397,12 @@ IRHD_clean %<>% .[updates, (shared_fields):=mget(paste0("i.", shared_fields)), o
 rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, rectify)                                   # Clean up
 
 # Add in new properties identified in new_wshfc
-#class(IRHD_clean$property_id) = "character"
 IRHD_clean <- bind_rows(IRHD_clean, new_wshfc)
 
 ## 8) Join IRHD_clean table with cleaned data from King County -------------------------
 # IRHD_clean <- rbind(IRHD_clean, KC_cleaned,fill=TRUE)
-# 
-# IRHD_clean %<>%
-#   relocate(ami_120, .after = ami_100)
 
-## 10) Final Cleanup ----------------------
+## 9) Final Cleanup ----------------------
 # Create new working_id value for each new record
 IRHD_clean$tempID <- str_sub(IRHD_clean$working_id, start= -4)
 first <- as.numeric(max(na.omit(IRHD_clean$tempID)))+1
@@ -414,7 +410,7 @@ last <- first + sum(is.na(IRHD_clean$tempID))-1
 IRHD_clean$working_id[IRHD_clean$working_id == "" | is.na(IRHD_clean$working_id)] <- paste0('SH_', first:last)
 IRHD_clean <- subset(IRHD_clean, select = -c(tempID))
 
-#check for any duplicates - hopefully 0!
+# check for any duplicates - hopefully 0!
 dups <- IRHD_clean %>%
   unique() %>%
   group_by(`property_id`) %>%

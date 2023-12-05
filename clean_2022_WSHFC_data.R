@@ -2,16 +2,18 @@
 # Title: Cleaning 2022 WSHFC data
 # Author: Eric Clute
 # Date created: 2022-11-30
-# Last Updated: 2023-11-16
+# Last Updated: 2023-12-04
 #################################################################################
 
 ## load packages-----------------------------------------------------------------
 library(tidyverse)
 library(readxl)
 library(janitor)
+library(data.table)
 
 ## 1) Set variables ---------------------------------------------------------------------
 
+setwd("C:/Users/eclute/GitHub/irhd")
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Data/WSHFC/"
 WSHFC_raw <- read_xlsx(paste0(WSHFC_path, "PSRC report for 2022.xlsx"))
 vintage_year_cleaning_script = "2022"
@@ -92,7 +94,7 @@ WSHFC_cleaned <- WSHFC_raw %>%
 
 #create grouped funder column
 WSHFC_cleaned %<>%
-  group_by(`Site Name`, Address) %>%
+  group_by(`Site Name`, `Address`) %>%
   mutate(Funder = paste(sort(unique(Funder)), collapse = ","))
 
 # ------- DATA FILTER #2 ------- select entry with the largest total restricted unit count
@@ -246,7 +248,8 @@ WSHFC_cleaned$reported_address[WSHFC_cleaned$reported_address == '9239 Bayshore 
 
 #clean address field for matching
 WSHFC_cleaned$full_address <- str_c(WSHFC_cleaned$reported_address,', ',WSHFC_cleaned$city,', WA, ',WSHFC_cleaned$zip)
-#WSHFC_cleaned_test <- add_cleaned_addresses(WSHFC_cleaned)
+WSHFC_cleaned <- as.data.frame(WSHFC_cleaned)
+WSHFC_cleaned <- add_cleaned_addresses(WSHFC_cleaned) %>% setDT()
 
 #set proper data types for matching
 WSHFC_cleaned$data_source <- as.character(WSHFC_cleaned$data_source)
