@@ -289,14 +289,14 @@ updates <- rbind(updates, subset8)
 rm(subset8)
 
 # Subset 9 selects the existing IRHD data over the new WSHFC data - selected since the new data appears "weird" or I confirmed the data online, etc. Somewhat arbitrary
-subset9 <- rectify %>% subset(str_detect(rectify$property_id, "18015|18016|16100|16101|16402|16002|18092|16002|17394|16408|17832|16445|16964|18086|17951|18181|16269|16794|18320|16707"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+subset9 <- rectify %>% subset(str_detect(rectify$property_id, "18015|18016|16100|16101|16402|16002|18092|16002|17394|16408|17832|16445|16964|18086|17951|18181|16269|16794|18320|16707|18422|18379|18436"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset9$select <- subset9$variable_value.x
 rectify <- anti_join(rectify, subset9, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset9)
 rm(subset9)
 
 # Subset 10 selects the new WSHFC data over the existing IRHD data - selected since the new data appears "legit". Pretty darn arbitrary
-subset10 <- rectify %>% subset(str_detect(rectify$property_id, "18210|16044|16774|16725|16158"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+subset10 <- rectify %>% subset(str_detect(rectify$property_id, "18210|16044|16774|16725|16158|16905|17438"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset10$select <- subset10$variable_value.y
 rectify <- anti_join(rectify, subset10, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset10)
