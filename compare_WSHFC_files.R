@@ -1,24 +1,33 @@
 #################################################################################
-# Title: Comparing WSHFC 2021 file to 2020 file (and exploring the WSHFC 2020 raw file)
+# Title: Comparing WSHFC 2022 file to 2021 file
 # Author: Eric Clute
-# Date created: 2023-04-06
-# Last Updated: 2023-04-11
+# Date created: 2023-12-06
+# Last Updated: 2023-12-06
 #################################################################################
-
-
-## load packages-----------------------------------------------------------------
 
 library(tidyverse)
 library(readxl)
+library(fuzzyjoin)
 
-## 1) Run the "reconcile_IRHD_&_new_data.R" ---------------------------------------------------------------------
-
-rm(newWSHFC)
-rm(WSHFC_raw)
-
-# Pull cleaned data
+setwd("C:/Users/eclute/GitHub/irhd")
+reconcile2022 <- "./reconcile_2022_IRHD.R"
 wshfc20 <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2020_cleaned.csv")
 wshfc21 <- read_csv("J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/WSHFC_2021_cleaned.csv")
+wshfc22 <- read_xlsx("J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Data/WSHFC/PSRC report for 2022.xlsx")
+
+
+wshfc22 <- wshfc22 %>%
+  filter(County == "Snohomish" | County == "Pierce" | County == "Kitsap")
+
+source(reconcile2022)
+rm(list=ls()[! ls() %in% c("no_match_irhd", "wshfc20", "wshfc21", "wshfc22")])
+
+
+
+no_match_irhd$PropertyID <- as.numeric(no_match_irhd$property_id)
+
+
+# Were these no_match_irhd properties in the 2020 dataset?
 
 stringr::str_detect('Multiple locations', 'Multiple')
 
@@ -34,24 +43,11 @@ df <- wshfc20 %>%
   select('ProjectID.x', 'ProjectID.y', 'ProjectName.x', 'ProjectName.y', 'Address.x', 'Address.y')
 
 
-# Join nomatchIRHD to wshfc20 - were these records included in the 2020 data? They are currently missing from 2021 wshfc
-nomatchIRHD_wshfc20_join <- left_join(nomatchIRHD,wshfc20, by = "PropertyID")
+# Join nomatchIRHD to wshfcXX
+no_match_irhd_wshfc_join <- left_join(no_match_irhd,wshfc20, by = "PropertyID")
 
-select_propid <- grep("PropertyID", names(nomatchIRHD_wshfc20_join))
-select_pname <- grep("ProjectName", names(nomatchIRHD_wshfc20_join))
-select_unit <- grep("TotalUnits", names(nomatchIRHD_wshfc20_join))
+select_propid <- grep("PropertyID", names(no_match_irhd_wshfc_join))
+select_pname <- grep("ProjectName", names(no_match_irhd_wshfc_join))
+select_unit <- grep("TotalUnits", names(no_match_irhd_wshfc_join))
 
-comparison <- nomatchIRHD_wshfc20_join %>% select(all_of(c(select_propid,select_pname,select_unit)))
-
-## It appears that all 100 records were included in the 2020 WSHFC file, but not the 2021 file
-
-## 2) Flag these 100 records in the WSHFC 2020 raw file for export to Melissa ---------------------------------------------------------------------
-
-# Pull raw WBARS data
-wshfc20_raw <- read.csv("J:/Projects/IncomeRestrictedHsgDB/2020 vintage/Updates/PSRC WBARS Report_12-31-2020.csv")
-
-# Join nomatchIRHD to wshfc20_raw
-wshfc20_raw <- rename(wshfc20_raw, PropertyID = SiteKey)
-nomatchIRHD_wshfc20raw_join <- left_join(nomatchIRHD,wshfc20_raw, by = "PropertyID", multiple = "first")
-
-## Again, it appears that all 100 records were included in the 2020 WSHFC raw file. WSHFC is claiming otherwise. Will advise.
+comparison <- no_match_irhd_wshfc_join %>% select(all_of(c(select_propid,select_pname,select_unit)))
