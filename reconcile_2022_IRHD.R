@@ -14,6 +14,8 @@ library(stringr)
 library(dplyr)
 library(odbc)
 library(DBI)
+setwd("C:/Users/eclute/GitHub/irhd")
+
 remotes::install_github("slu-openGIS/postmastr")
 
 elmer_connection <- dbConnect(odbc::odbc(),
