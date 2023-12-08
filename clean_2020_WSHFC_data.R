@@ -2,7 +2,7 @@
 # Title: 2020 IRHD, Cleaning WSHFC data
 # Author: Eric Clute
 # Date created: 2023-04-06
-# Last Updated: 2023-04-06
+# Last Updated: 2023-12-07
 #################################################################################
 
 ## load packages-----------------------------------------------------------------
@@ -12,7 +12,7 @@ library(janitor)
 
 ## 1) load data ---------------------------------------------------------------------
 
-J_drive_raw_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2020 vintage/Updates/"
+J_drive_raw_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2020 vintage/WSHFC/Raw Data/"
 
 original_WSHFC_raw <- read_xlsx(paste0(J_drive_raw_files_filepath, "PSRC WBARS Report_12-31-2020.xlsx"))
 
@@ -222,7 +222,7 @@ WSHFC_cleaned$DataSource = "WSHFC"
 ## 4) save files --------------------------------------------------------------------
 
 #save J: drive cleaned files location filepath
-J_drive_cleaned_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/WSHFC/Cleaned Data/"
+J_drive_cleaned_files_filepath <- "J:/Projects/IncomeRestrictedHsgDB/2020 vintage/WSHFC/Cleaned Data/"
 
 #save cleaned files
-write_csv(WSHFC_cleaned, paste0(J_drive_cleaned_files_filepath, "WSHFC_2020_cleaned.csv"))
+#write_csv(WSHFC_cleaned, paste0(J_drive_cleaned_files_filepath, "WSHFC_2020_cleaned.csv"))
