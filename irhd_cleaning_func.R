@@ -1,5 +1,6 @@
-# Summary functions for the IRHD. Summarize by county, by county & bedroom count, and by county & AMI limit
+## IRHD FUNCTIONS
 
+# Summary functions for the IRHD. Summarize by county, by county & bedroom count, and by county & AMI limit
 summary_county <- function(df){
   new_IRHD_county <- df %>%
     group_by(county) %>%
@@ -17,7 +18,6 @@ summary_county <- function(df){
   colnames(new_IRHD_county) <- new_IRHD_county[1,]
   new_IRHD_county <- new_IRHD_county[-1, ] 
   new_IRHD_county %<>% rename(!!paste(vintage_year, "new units") := "county")
-  
 }
 
 # BY UNIT SIZE
@@ -40,7 +40,6 @@ summary_county_bedrooms <- function(df){
   colnames(IRHD_county_bedrooms) <- IRHD_county_bedrooms[1,]
   IRHD_county_bedrooms <- IRHD_county_bedrooms[-1, ] 
   IRHD_county_bedrooms %<>% rename("unit_size" = "county")
-  
 }
 
 # BY AMI LIMIT
@@ -63,4 +62,47 @@ summary_county_ami <- function(df){
   colnames(IRHD_county_ami) <- IRHD_county_ami[1,]
   IRHD_county_ami <- IRHD_county_ami[-1, ] 
   IRHD_county_ami %<>% rename("ami_limits" = "county")
+}
+
+# CREATE WORKINGID FOR NEW RECORDS
+create_workingid <- function(df) {
+  IRHD_clean <- df
+  IRHD_clean$tempID <- str_sub(IRHD_clean$working_id, start= -4)
+  first <- as.numeric(max(na.omit(IRHD_clean$tempID)))+1
+  last <- first + sum(is.na(IRHD_clean$tempID))-1
+  IRHD_clean$working_id[IRHD_clean$working_id == "" | is.na(IRHD_clean$working_id)] <- paste0('SH_', first:last)
+  IRHD_clean <- subset(IRHD_clean, select = -c(tempID))
+}
+
+# CREATE AMI CLEANUP FUNCTION
+# This code cleans up the AMI_Unknown field, so it adequately represents how many units are truly "unknown" in their AMI limits
+ami_cleanup <- function(df) {
+  
+  IRHD_clean <- df
+  AMIcols<-as.character(quote(c(ami_20, ami_25, ami_30, ami_35, ami_40, ami_45, ami_50, ami_60, ami_65, ami_70, ami_75, ami_80, ami_85, ami_90,  ami_100, ami_120)))[-1]
+  
+  IRHD_clean %<>%
+    mutate(across(all_of(AMIcols), ~replace_na(.,0) )%>%
+             mutate(ami_unknown = total_restricted_units - rowSums(across(all_of(AMIcols)))))
+  IRHD_clean %<>% mutate(ami_unknown = if_else(ami_unknown < 0, 0, ami_unknown))
+}
+
+# CREATE UNIT SIZE CLEANUP FUNCTION
+# This code cleans up the Bedroom_Unknown field, so it adequately represents how many units are truly "unknown" in their unit bedroom count
+unitsize_cleanup <- function(df) {
+  
+  IRHD_clean <- df
+  sizecols<-as.character(quote(c(bedroom_0,bedroom_1,bedroom_2,bedroom_3,bedroom_4,bedroom_5)))[-1]
+  
+  IRHD_clean %<>%
+    mutate(across(all_of(sizecols), ~replace_na(.,0) )%>%
+             mutate(bedroom_unknown = total_units - rowSums(across(all_of(sizecols)))))
+  IRHD_clean %<>% mutate(bedroom_unknown = if_else(bedroom_unknown < 0, 0, bedroom_unknown))
+}
+
+# CREATE DATA YEAR FIELD CLEANUP FUNCTION
+datayear_cleanup <- function(df) {
+  IRHD_clean <- subset(IRHD_clean, select = -c(data_year))
+  IRHD_clean$data_year = vintage_year
+  IRHD_clean %<>% select(data_year, everything())
 }

@@ -14,6 +14,7 @@ library(stringr)
 library(dplyr)
 library(odbc)
 library(DBI)
+library(openxlsx)
 setwd("C:/Users/eclute/GitHub/irhd")
 
 remotes::install_github("slu-openGIS/postmastr")
@@ -24,18 +25,19 @@ elmer_connection <- dbConnect(odbc::odbc(),
                               database = "Elmer",
                               trusted_connection = "yes")
 
-export_4review_housingauthorities <- "./Export4review-housingauthorities.csv"
-export_4review_wshfc <- "./Export4review-wshfc.csv"
+review_after_join_housingauthorities <- "./Export4review-housingauthorities.csv" # Export for review after WSHFC-IRHD join. Help understanding why property data are changing
+review_after_join_wshfc <- "./Export4review-wshfc.csv" # Export for review after WSHFC-IRHD join. Help understanding why property data are missing, different, etc
+final_review_housingauthorities <- "./final_review_housingauthorities.xlsx" # Export final dataset for review. Ask housing authorities to flag errors, add new properties, remove out-of-service properties, etc
 #HASCO_updates_path <- ""
 #THA_updates_path <- ""
 
-address_script <- "./address_match.R"
-summary_func <- "./summary_func_irhd.R"
+address_func <- "./address_match.R"
+irhd_func <- "./irhd_cleaning_func.R"
 wshfc_clean_script <- "./clean_2022_WSHFC_data.R"
 kc_clean_script <- "./clean_2022_KC_data.R"
 
-source(address_script)
-source(summary_func)
+source(address_func)
+source(irhd_func)
 
 `%not_in%` <- Negate(`%in%`)
 vintage_year <- 2022
@@ -78,7 +80,7 @@ new_wshfc <- anti_join(WSHFC_cleaned, IRHD, by = "property_id")
 
 no_match_irhd <- anti_join(IRHD, WSHFC_cleaned, by = "property_id")
 no_match_irhd <- no_match_irhd %>% drop_na(property_id)
-write.csv(no_match_irhd, export_4review_wshfc, row.names=FALSE)
+write.csv(no_match_irhd, review_after_join_wshfc, row.names=FALSE)
 
 ## 5) Identify matched records in IRHD and WSHFC_cleaned -------------------------
 
@@ -312,12 +314,12 @@ rectify <- anti_join(rectify, subset11, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset11)
 rm(subset11)
 
-# Export remaining records and contact the corresponding housing authority
+# If needed, export remaining WSHFC records and contact the corresponding housing authority
 rectify_export <- rectify %>%
   inner_join(IRHD, by='property_id')
 
 rectify_export = rectify_export[,c("ID","property_id","variable_class","variable_value.x","variable_value.y","data_source","project_name","property_owner","in_service_date", "county","cleaned_address")]
-#write.csv(rectify_export, export_4review_housingauthorities, row.names=FALSE)
+#write.csv(rectify_export, review_after_join_housingauthorities, row.names=FALSE)
 
 #Snohomish County Housing Authority
 # subset12 <- rectify %>%
@@ -401,16 +403,52 @@ rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, rectify)             
 # Add in new properties identified in new_wshfc
 IRHD_clean <- bind_rows(IRHD_clean, new_wshfc)
 
-## 8) Join IRHD_clean table with cleaned data from King County -------------------------
+# Clean up before export to housing authorities
+IRHD_clean <- ami_cleanup(IRHD_clean)
+IRHD_clean <- unitsize_cleanup(IRHD_clean)
+IRHD_clean <- datayear_cleanup(IRHD_clean)
+
+## 8) Export for review by housing authorities, ask for new properties, remove out-of-service properties, etc -------------------------
+# Export IRHD_clean for review
+
+county_kitsap_review <- IRHD_clean %>%
+  filter(IRHD_clean$county == "Kitsap")
+
+county_pierce_review <- IRHD_clean %>%
+  filter(IRHD_clean$county == "Pierce")
+
+county_snohomish_review <- IRHD_clean %>%
+  filter(IRHD_clean$county == "Snohomish")
+
+# Create a blank workbook
+final_review_export <- createWorkbook()
+
+# Add some sheets to the workbook
+addWorksheet(final_review_export, "Kitsap")
+addWorksheet(final_review_export, "Pierce")
+addWorksheet(final_review_export, "Snohomish")
+
+# Write the data to the sheets
+writeData(final_review_export, sheet = "Kitsap", x = county_kitsap_review)
+writeData(final_review_export, sheet = "Pierce", x = county_pierce_review)
+writeData(final_review_export, sheet = "Snohomish", x = county_snohomish_review)
+
+# Export the file
+saveWorkbook(final_review_export, final_review_housingauthorities)
+
+# Add new properties, remove out-of-service, update records as needed
+
+
+
+
+## 9) Join IRHD_clean table with cleaned data from King County -------------------------
 # IRHD_clean <- rbind(IRHD_clean, KC_cleaned,fill=TRUE)
 
-## 9) Final Cleanup ----------------------
-# Create new working_id value for each new record
-IRHD_clean$tempID <- str_sub(IRHD_clean$working_id, start= -4)
-first <- as.numeric(max(na.omit(IRHD_clean$tempID)))+1
-last <- first + sum(is.na(IRHD_clean$tempID))-1
-IRHD_clean$working_id[IRHD_clean$working_id == "" | is.na(IRHD_clean$working_id)] <- paste0('SH_', first:last)
-IRHD_clean <- subset(IRHD_clean, select = -c(tempID))
+## 10) Final Cleanup ----------------------
+IRHD_clean <- create_workingid(IRHD_clean)
+IRHD_clean <- ami_cleanup(IRHD_clean)
+IRHD_clean <- unitsize_cleanup(IRHD_clean)
+IRHD_clean <- datayear_cleanup(IRHD_clean)
 
 # check for any duplicates - hopefully 0!
 dups <- IRHD_clean %>%
@@ -427,34 +465,11 @@ dups <- IRHD_clean %>%
   filter(n > 1)
 dups <- filter(dups, !is.na(working_id))
 
-# This code cleans up the AMI_Unknown field, so it adequately represents how many units are truly "unknown" in their AMI limits
-AMIcols<-as.character(quote(c(ami_20, ami_25, ami_30, ami_35, ami_40, ami_45, ami_50, ami_60, ami_65, ami_70, ami_75, ami_80, ami_85, ami_90,  ami_100, ami_120)))[-1]
-
-IRHD_clean %<>%
-  mutate(across(all_of(AMIcols), ~replace_na(.,0) )%>%
-           mutate(ami_unknown = total_restricted_units - rowSums(across(all_of(AMIcols)))))
-IRHD_clean %<>% mutate(ami_unknown = if_else(ami_unknown < 0, 0, ami_unknown))
-
-sum(IRHD_clean$ami_20, IRHD_clean$ami_25, IRHD_clean$ami_30, IRHD_clean$ami_35, IRHD_clean$ami_40, IRHD_clean$ami_45, IRHD_clean$ami_50, IRHD_clean$ami_60, IRHD_clean$ami_65, IRHD_clean$ami_70, IRHD_clean$ami_75, IRHD_clean$ami_80, IRHD_clean$ami_85, IRHD_clean$ami_90,  IRHD_clean$ami_100, IRHD_clean$ami_120, na.rm = T)
-
-# This code cleans up the Bedroom_Unknown field, so it adequately represents how many units are truly "unknown" in their unit bedroom count
-sizecols<-as.character(quote(c(bedroom_0,bedroom_1,bedroom_2,bedroom_3,bedroom_4,bedroom_5)))[-1]
-
-IRHD_clean %<>%
-  mutate(across(all_of(sizecols), ~replace_na(.,0) )%>%
-           mutate(bedroom_unknown = total_units - rowSums(across(all_of(sizecols)))))
-IRHD_clean %<>% mutate(bedroom_unknown = if_else(bedroom_unknown < 0, 0, bedroom_unknown))
-
-sum(IRHD_clean$bedroom_0,IRHD_clean$bedroom_1,IRHD_clean$bedroom_2,IRHD_clean$bedroom_3,IRHD_clean$bedroom_4,IRHD_clean$bedroom_5, na.rm = T)
-
-# Cleans up data year field
-IRHD_clean$data_year = vintage_year
-
-## 10) Summary table by County and AMI/Unit Size -------------------------
+## 11) Summary table by County and AMI/Unit Size -------------------------
 IRHD_county_bedrooms <- summary_county_bedrooms(IRHD_clean)
 IRHD_county_ami <- summary_county_ami(IRHD_clean)
 
-## 11) Explore new units -------------------------
+## 12) Explore new units -------------------------
 new_IRHD <- IRHD_clean %>%
   filter(IRHD_clean$in_service_date == vintage_year)
 
@@ -462,7 +477,7 @@ new_IRHD_county_bedrooms <- summary_county_bedrooms(new_IRHD)
 new_IRHD_county_ami <- summary_county_ami(new_IRHD)
 new_IRHD_county <- summary_county(new_IRHD)
 
-## 12) Export to Elmer IRHD_clean -------------------------
+## 13) Export to Elmer IRHD_clean -------------------------
 # table_id <- Id(schema = "stg", table = "irhd")
 # dbWriteTable(conn = elmer_connection, name = table_id, value = IRHD_clean, overwrite = TRUE)
 # dbExecute(conn=elmer_connection, statement=sql_export)
