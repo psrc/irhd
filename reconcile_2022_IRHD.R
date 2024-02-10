@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: WSHFC, HASCO, THA, King County, EHA, PCHA, BHA
-# DATE MODIFIED: 12.04.2023
+# DATE MODIFIED: 02.09.2024
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -410,7 +410,6 @@ IRHD_clean <- datayear_cleanup(IRHD_clean)
 
 ## 8) Export for review by housing authorities, ask for new properties, remove out-of-service properties, etc -------------------------
 # Export IRHD_clean for review
-
 county_kitsap_review <- IRHD_clean %>%
   filter(IRHD_clean$county == "Kitsap")
 
