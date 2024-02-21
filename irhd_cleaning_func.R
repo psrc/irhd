@@ -106,3 +106,94 @@ datayear_cleanup <- function(df) {
   IRHD_clean$data_year = vintage_year
   IRHD_clean %<>% select(data_year, everything())
 }
+
+# CREATE FUNCTION: IDENTIFY CHANGES ACROSS DATAFRAMES (df1 = IRHD and df2 = df to be matched. Ensure all field names match!)
+identify_changes_irhd <- function(df1, df2) {
+  # Pivot the IRHD data to make it long and thin
+  long_IRHD <- df1 %>%
+    pivot_longer(c('project_id',
+                   'project_name',
+                   'property_name',
+                   'property_owner',
+                   'manager',
+                   'in_service_date',
+                   'expiration_date',
+                   'cleaned_address',
+                   'county',
+                   'total_units',
+                   'total_restricted_units',
+                   'ami_20','ami_25','ami_30','ami_35','ami_40','ami_45','ami_50','ami_60','ami_65','ami_70','ami_75','ami_80','ami_85','ami_90','ami_100',
+                   'market_rate',
+                   'manager_unit',
+                   'bedroom_0','bedroom_1','bedroom_2','bedroom_3','bedroom_4','bedroom_5','bedroom_unknown',
+                   'bed_count',
+                   'site_type',
+                   'HOMEcity',
+                   'HOMEcounty',
+                   'HOMEstate',
+                   'confidentiality',
+                   'policy',
+                   'senior',
+                   'disabled',
+                   'homeless',
+                   'transitional',
+                   'veterans',
+                   'funding_sources',
+                   'tenure'),
+                 names_to='variable_class',
+                 values_to='variable_value',
+                 values_transform = list(variable_value=as.character))
+  
+  # Remove some fields that we don't need here
+  long_IRHD %<>% select(c(property_id,variable_class,variable_value))
+
+  # Pivot the mocked-up data to make it long and thin
+  long_df <- df2 %>%
+    pivot_longer(c('project_id',
+                   'project_name',
+                   'property_name',
+                   'property_owner',
+                   'manager',
+                   'in_service_date',
+                   'expiration_date',
+                   'cleaned_address',
+                   'county',
+                   'total_units',
+                   'total_restricted_units',
+                   'ami_20','ami_25','ami_30','ami_35','ami_40','ami_45','ami_50','ami_60','ami_65','ami_70','ami_75','ami_80','ami_85','ami_90','ami_100',
+                   'market_rate',
+                   'manager_unit',
+                   'bedroom_0','bedroom_1','bedroom_2','bedroom_3','bedroom_4','bedroom_5','bedroom_unknown',
+                   'bed_count',
+                   'site_type',
+                   'HOMEcity',
+                   'HOMEcounty',
+                   'HOMEstate',
+                   'confidentiality',
+                   'policy',
+                   'senior',
+                   'disabled',
+                   'homeless',
+                   'transitional',
+                   'veterans',
+                   'funding_sources',
+                   'tenure'),
+                 names_to='variable_class',
+                 values_to='variable_value',
+                 values_transform = list(variable_value=as.character))
+
+  # Remove some fields that we don't need here
+  long_df %<>% select(c(property_id,variable_class,variable_value))
+
+
+  # Compare the two data sets in long form to identify values that have been changed
+  rectify <- long_IRHD %>%
+    inner_join(long_df, by=c('property_id', 'variable_class')) %>%
+    mutate("match" = ifelse(mapply(identical, variable_value.x, variable_value.y), "y", "n")) %>%
+    filter(match == "n") %>%
+    drop_na(variable_value.y)
+  
+  # Create field to indicate which variable to use
+  rectify$select <- ""
+  rectify <- tibble::rowid_to_column(rectify, "ID")
+}

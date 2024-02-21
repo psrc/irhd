@@ -82,97 +82,11 @@ no_match_irhd <- anti_join(IRHD, WSHFC_cleaned, by = "property_id")
 no_match_irhd <- no_match_irhd %>% drop_na(property_id)
 write.csv(no_match_irhd, review_after_join_wshfc, row.names=FALSE)
 
-## 5) Identify matched records in IRHD and WSHFC_cleaned -------------------------
+## 5) Identify changes - IRHD and WSHFC_cleaned. Create long-form for easy comparison -------------------------
 
-# Pivot the IRHD data to make it long and thin
-long_IRHD <- IRHD %>%
-  pivot_longer(c('project_id',
-                 'project_name',
-                 'property_name',
-                 'property_owner',
-                 'manager',
-                 'in_service_date',
-                 'expiration_date',
-                 'cleaned_address',
-                 'county',
-                 'total_units',
-                 'total_restricted_units',
-                 'ami_20','ami_25','ami_30','ami_35','ami_40','ami_45','ami_50','ami_60','ami_65','ami_70','ami_75','ami_80','ami_85','ami_90','ami_100',
-                 'market_rate',
-                 'manager_unit',
-                 'bedroom_0','bedroom_1','bedroom_2','bedroom_3','bedroom_4','bedroom_5','bedroom_unknown',
-                 'bed_count',
-                 'site_type',
-                 'HOMEcity',
-                 'HOMEcounty',
-                 'HOMEstate',
-                 'confidentiality',
-                 'policy',
-                 'senior',
-                 'disabled',
-                 'homeless',
-                 'transitional',
-                 'veterans',
-                 'funding_sources',
-                 'tenure'),
-               names_to='variable_class',
-               values_to='variable_value',
-               values_transform = list(variable_value=as.character))
-
-# Remove some fields that we don't need here
-long_IRHD %<>% select(c(property_id,variable_class,variable_value))
-
-# Pivot the mocked-up data to make it long and thin
-long_WSHFC <- WSHFC_cleaned %>%
-  pivot_longer(c('project_id',
-                 'project_name',
-                 'property_name',
-                 'property_owner',
-                 'manager',
-                 'in_service_date',
-                 'expiration_date',
-                 'cleaned_address',
-                 'county',
-                 'total_units',
-                 'total_restricted_units',
-                 'ami_20','ami_25','ami_30','ami_35','ami_40','ami_45','ami_50','ami_60','ami_65','ami_70','ami_75','ami_80','ami_85','ami_90','ami_100',
-                 'market_rate',
-                 'manager_unit',
-                 'bedroom_0','bedroom_1','bedroom_2','bedroom_3','bedroom_4','bedroom_5','bedroom_unknown',
-                 'bed_count',
-                 'site_type',
-                 'HOMEcity',
-                 'HOMEcounty',
-                 'HOMEstate',
-                 'confidentiality',
-                 'policy',
-                 'senior',
-                 'disabled',
-                 'homeless',
-                 'transitional',
-                 'veterans',
-                 'funding_sources',
-                 'tenure'),
-               names_to='variable_class',
-               values_to='variable_value',
-               values_transform = list(variable_value=as.character))
-
-# Remove some fields that we don't need here
-long_WSHFC %<>% select(c(property_id,variable_class,variable_value))
-
-
-# Compare the two data sets in long form to identify values that have been changed
-rectify <- long_IRHD %>%
-  inner_join(long_WSHFC, by=c('property_id', 'variable_class')) %>%
-  mutate("match" = ifelse(mapply(identical, variable_value.x, variable_value.y), "YES", "NO")) %>%
-  filter(match == "NO") %>%
-  drop_na(variable_value.y)
+rectify <- identify_changes_irhd(IRHD, WSHFC_cleaned)
 
 ## 6) Identify which rows will be updated with new WSHFC data, or keep existing data -------------------------
-
-# Create field to indicate which variable to use
-rectify$select <- ""
-rectify <- tibble::rowid_to_column(rectify, "ID")
 
 # Subset 1) select records with no data in the IRHD - we will take new data from WSHFC
 subset1 <- rectify %>% subset((is.na(variable_value.x)| variable_value.x == ""), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
