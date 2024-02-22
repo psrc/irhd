@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: WSHFC, HASCO, THA, King County, EHA, PCHA, BHA
-# DATE MODIFIED: 02.09.2024
+# DATE MODIFIED: 02.21.2024
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -84,7 +84,7 @@ write.csv(no_match_irhd, review_after_join_wshfc, row.names=FALSE)
 
 ## 5) Identify changes - IRHD and WSHFC_cleaned. Create long-form for easy comparison -------------------------
 
-rectify <- identify_changes_irhd(IRHD, WSHFC_cleaned)
+rectify <- identify_changes_irhd(IRHD, WSHFC_cleaned, 'property_id')
 
 ## 6) Identify which rows will be updated with new WSHFC data, or keep existing data -------------------------
 
@@ -220,7 +220,7 @@ rectify <- anti_join(rectify, subset10, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset10)
 rm(subset10)
 
-# Subset 11-14) As directed by housing authorities 
+# Subset 11+) As directed by housing authorities 
 #Everett Housing Authority
 subset11 <- rectify %>% subset(str_detect(rectify$property_id, "15905|15932|15961|16024|16593|17818|17820|17821|18107|18108|18109|18110|17749|17748"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset11$select <- subset11$variable_value.x
@@ -229,33 +229,11 @@ updates <- rbind(updates, subset11)
 rm(subset11)
 
 # If needed, export remaining WSHFC records and contact the corresponding housing authority
-rectify_export <- rectify %>%
-  inner_join(IRHD, by='property_id')
-
-rectify_export = rectify_export[,c("ID","property_id","variable_class","variable_value.x","variable_value.y","data_source","project_name","property_owner","in_service_date", "county","cleaned_address")]
+# rectify_export <- rectify %>%
+#   inner_join(IRHD, by='property_id')
+# 
+# rectify_export = rectify_export[,c("ID","property_id","variable_class","variable_value.x","variable_value.y","data_source","project_name","property_owner","in_service_date", "county","cleaned_address")]
 #write.csv(rectify_export, review_after_join_housingauthorities, row.names=FALSE)
-
-#Snohomish County Housing Authority
-# subset12 <- rectify %>%
-#   inner_join(HASCO, join_by(property_id == property_id, variable_class == Variable))
-# subset12$select <- subset12$Corrected
-# subset12 <- subset12 %>% 
-#   rename("ID" = "ID.x")
-# subset12 %<>% select(c(ID,property_id,variable_class,variable_value.x,variable_value.y,match,select))
-# rectify <- anti_join(rectify, subset12, by=c("ID"="ID"))# remove from rectify
-# updates <- rbind(updates, subset12)
-# rm(subset12)
-
-#Tacoma Housing Authority
-# subset13 <- rectify %>%
-#   inner_join(THA, join_by(property_id == property_id, variable_class == Variable))
-# subset13$select <- subset13$Corrected
-# subset13 <- subset13 %>% 
-#   rename("ID" = "ID.x")
-# subset13 %<>% select(c(ID,property_id,variable_class,variable_value.x,variable_value.y,match,select))
-# rectify <- anti_join(rectify, subset13, by=c("ID"="ID"))# remove from rectify
-# updates <- rbind(updates, subset13)
-# rm(subset13)
 
 #All remaining changes (select newer WSHFC data - assuming it is correct)
 subset14 <- rectify %>% subset((rectify$select == ""), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
@@ -266,53 +244,8 @@ rm(subset14)
 
 
 ## 7) Take "updates" data and update IRHD records, create IRHD_clean table -------------------------
-# Transform "updates" for updating existing IRHD
-updates <- updates %>% pivot_wider(id_cols = c('property_id'), names_from = 'variable_class', values_from = 'select') %>%
-  setDT()
 
-class(updates$project_id) = "character"
-class(updates$total_units) = "numeric"
-class(updates$total_restricted_units) = "numeric"
-class(updates$in_service_date) = "character"
-class(updates$zip) = "character"
-class(updates$ami_20) = "numeric"
-class(updates$ami_30) = "numeric"
-class(updates$ami_35) = "numeric"
-class(updates$ami_40) = "numeric"
-class(updates$ami_45) = "numeric"
-class(updates$ami_50) = "numeric"
-class(updates$ami_60) = "numeric"
-class(updates$ami_65) = "numeric"
-class(updates$ami_80) = "numeric"
-class(updates$market_rate) = "numeric"
-class(updates$manager_unit) = "numeric"
-class(updates$bedroom_0) = "numeric"
-class(updates$bedroom_1) = "numeric"
-class(updates$bedroom_2) = "numeric"
-class(updates$bedroom_3) = "numeric"
-class(updates$bedroom_4) = "numeric"
-class(updates$bedroom_unknown) = "numeric"
-class(updates$bed_count) = "numeric"
-class(updates$senior) = "numeric"
-class(updates$HOMEcity) = "numeric"
-class(updates$HOMEcounty) = "numeric"
-class(updates$HOMEstate) = "numeric"
-class(updates$homeless) = "numeric"
-class(updates$disabled) = "numeric"
-
-# Create new clean IRHD file
-IRHD_clean <- copy(IRHD)
-setDT(IRHD_clean)
-
-# Update records as determined by the "updates" dataframe
-shared_fields <- intersect(names(updates), names(IRHD_clean))                                        # fields in common
-dupes <- IRHD_clean[duplicated(property_id), cbind(.SD[1], number=.N), by=property_id] %>%            # duplicates (to exclude)
-  pull(working_id)
-blankfill <- IRHD_clean %>%                                                                           # create IRHD data that matches fields from updates
-  .[!is.na(property_id) & working_id %not_in% (dupes), (colnames(.) %in% shared_fields), with=FALSE]  # include only common records, no duplicate keys
-updates %<>% rows_patch(blankfill, by="property_id", unmatched="ignore")                             # replace NA in `updates` with values from `IRHD_clean`
-IRHD_clean %<>% .[updates, (shared_fields):=mget(paste0("i.", shared_fields)), on=.(property_id)]    # carry over all matching variables from updates
-rm(dupes, blankfill, shared_fields, long_IRHD, long_WSHFC, rectify)                                   # Clean up
+IRHD_clean <- update_irhd(IRHD, updates, 'property_id')
 
 # Add in new properties identified in new_wshfc
 IRHD_clean <- bind_rows(IRHD_clean, new_wshfc)
@@ -323,6 +256,7 @@ IRHD_clean <- unitsize_cleanup(IRHD_clean)
 IRHD_clean <- datayear_cleanup(IRHD_clean)
 
 ## 8) Export for review by housing authorities, ask for new properties, remove out-of-service properties, etc -------------------------
+
 # Export IRHD_clean for review
 county_kitsap_review <- IRHD_clean %>%
   filter(IRHD_clean$county == "Kitsap")
@@ -350,11 +284,16 @@ writeData(final_review_export, sheet = "Snohomish", x = county_snohomish_review)
 saveWorkbook(final_review_export, final_review_housingauthorities)
 
 # Add new properties, remove out-of-service, update records as needed
+#rectify <- identify_changes_irhd(IRHD_clean, joinedtablereceivedfromhousingauthorities, 'working_id')
 
+# Do we like the changes made? Select whether to keep existing data or accept update
+#subset <- rectify %>% subset(str_detect(
 
-
+# Take "updates" data and update IRHD records
+#IRHD_clean <- update_irhd(IRHD_clean, updates, 'working_id')
 
 ## 9) Join IRHD_clean table with cleaned data from King County -------------------------
+
 # IRHD_clean <- rbind(IRHD_clean, KC_cleaned,fill=TRUE)
 
 ## 10) Final Cleanup ----------------------
