@@ -247,7 +247,7 @@ WSHFC_cleaned$reported_address[WSHFC_cleaned$reported_address == '9225 Bayshore 
 WSHFC_cleaned$reported_address[WSHFC_cleaned$reported_address == '9239 Bayshore Dr NW'] <- '9239 Bay Shore Dr NW'
 
 #clean address field for matching
-WSHFC_cleaned$full_address <- str_c(WSHFC_cleaned$reported_address,', ',WSHFC_cleaned$city,', WA, ',WSHFC_cleaned$zip)
+WSHFC_cleaned$full_address <- str_c(WSHFC_cleaned$reported_address,', ',WSHFC_cleaned$city,', WA ',WSHFC_cleaned$zip)
 WSHFC_cleaned <- as.data.frame(WSHFC_cleaned)
 WSHFC_cleaned <- add_cleaned_addresses(WSHFC_cleaned) %>% setDT()
 

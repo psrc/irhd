@@ -25,9 +25,9 @@ elmer_connection <- dbConnect(odbc::odbc(),
                               database = "Elmer",
                               trusted_connection = "yes")
 
-review_after_join_housingauthorities <- "./Export4review-housingauthorities.csv" # Export for review after WSHFC-IRHD join. Help understanding why property data are changing
-review_after_join_wshfc <- "./Export4review-wshfc.csv" # Export for review after WSHFC-IRHD join. Help understanding why property data are missing, different, etc
-final_review_housingauthorities <- "./final_review_housingauthorities.xlsx" # Export final dataset for review. Ask housing authorities to flag errors, add new properties, remove out-of-service properties, etc
+review_after_join_housingauthorities <- "./Export4review-housingauthorities.csv" # Export for review after WSHFC-IRHD join. Help understanding why property data are changing, reach out to housing authorities or WSHFC
+review_after_join_wshfc <- "./Export4review-wshfc.csv" # Export for review after WSHFC-IRHD join. Why property data are missing from new WSHFC data but included in IRHD
+final_review_housingauthorities <- "./final_review_housingauthorities.xlsx" # Export final dataset for review by housing authorities
 #HASCO_updates_path <- ""
 #THA_updates_path <- ""
 
@@ -97,19 +97,12 @@ rm(subset1)
 
 # Subset 2) Below fields - select WHSFC data
 subset2 <- rectify %>% subset((variable_class == "in_service_date" |
-                                    variable_class == "manager"|
-                                    variable_class == "property_owner"|
-                                    variable_class == "project_id"|
-                                    variable_class == "disabled"|
-                                    variable_class == "homeless"|
-                                    variable_class == "senior"|
-                                    variable_class == "bed_count"|
-                                    variable_class == "property_name"|
-                                    variable_class == "site_type"|
-                                    variable_class == "funding_sources"|
-                                    variable_class == "HOMEcity"|
-                                    variable_class == "HOMEcounty"|
-                                    variable_class == "HOMEstate"|
+                                    variable_class == "manager"| variable_class == "property_owner"|
+                                    variable_class == "project_id"| variable_class == "disabled"|
+                                    variable_class == "homeless"| variable_class == "senior"|
+                                    variable_class == "bed_count"| variable_class == "property_name"|
+                                    variable_class == "site_type"| variable_class == "funding_sources"|
+                                    variable_class == "HOMEcity"| variable_class == "HOMEcounty"| variable_class == "HOMEstate"|
                                     variable_class == "expiration_date"|
                                     variable_class == "project_name"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset2$select <- subset2$variable_value.y
@@ -125,32 +118,18 @@ updates <- rbind(updates, subset3)
 rm(subset3)
 
 # Subset 4) select all AMI/Unit count/Bedroom size data, identify small numeric changes
-subset4 <- rectify %>% subset((variable_class == "total_units" |
-                                    variable_class == "total_restricted_units"|
-                                    variable_class == "ami_20"|
-                                    variable_class == "ami_25"|
-                                    variable_class == "ami_30"|
-                                    variable_class == "ami_35"|
-                                    variable_class == "ami_40"|
-                                    variable_class == "ami_45"|
+subset4 <- rectify %>% subset((variable_class == "total_units" | variable_class == "total_restricted_units"|
+                                    variable_class == "ami_20"| variable_class == "ami_25"|
+                                    variable_class == "ami_30"| variable_class == "ami_35"|
+                                    variable_class == "ami_40"| variable_class == "ami_45"|
                                     variable_class == "ami_50"|
-                                    variable_class == "ami_60"|
-                                    variable_class == "ami_65"|
-                                    variable_class == "ami_70"|
-                                    variable_class == "ami_75"|
-                                    variable_class == "ami_80"|
-                                    variable_class == "ami_85"|
-                                    variable_class == "ami_90"|
-                                    variable_class == "ami_100"|
-                                    variable_class == "market_rate"|
-                                    variable_class == "manager_unit"|
-                                    variable_class == "bedroom_0"|
-                                    variable_class == "bedroom_1"|
-                                    variable_class == "bedroom_2"|
-                                    variable_class == "bedroom_3"|
-                                    variable_class == "bedroom_4"|
-                                    variable_class == "bedroom_5"|
-                                    variable_class == "bedroom_unknown"|
+                                    variable_class == "ami_60"| variable_class == "ami_65"|
+                                    variable_class == "ami_70"| variable_class == "ami_75"|
+                                    variable_class == "ami_80"| variable_class == "ami_85"|
+                                    variable_class == "ami_90"| variable_class == "ami_100"|
+                                    variable_class == "market_rate"| variable_class == "manager_unit"|
+                                    variable_class == "bedroom_0"| variable_class == "bedroom_1"| variable_class == "bedroom_2"| variable_class == "bedroom_3"|
+                                    variable_class == "bedroom_4"| variable_class == "bedroom_5"| variable_class == "bedroom_unknown"|
                                     variable_class == "bed_count"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 
 # Create formula for calculating difference between numeric values
@@ -172,7 +151,8 @@ subset4$select <- ifelse(subset4$diff <= "0.12", subset4$variable_value.y, "")
 subset4$select <- ifelse(subset4$sum.y == "0", subset4$variable_value.x, subset4$select)
 
 # Remove "diff" of greater than 12% from subset4
-subset4 <- subset4 %>% subset(!(select == ""), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select, sum.x, sum.y, diff))
+subset4 <- subset4 %>% subset(!(select == ""),
+                              select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select, sum.x, sum.y, diff))
 rectify <- anti_join(rectify, subset4, by=c("ID"="ID")) # remove from rectify
 
 subset4 <- subset4[, -c(8,9,10)]
@@ -180,7 +160,8 @@ updates <- rbind(updates, subset4)
 rm(subset4)
 
 # Subset 5) If WSHFC field is blank, select IRHD data
-subset5 <- rectify %>% subset((is.na(variable_value.y)| variable_value.y == ""), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+subset5 <- rectify %>% subset((is.na(variable_value.y)| variable_value.y == ""),
+                              select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset5$select <- subset5$variable_value.x
 rectify <- anti_join(rectify, subset5, by=c("ID"="ID")) # remove from rectify
 updates <- rbind(updates, subset5)
@@ -188,26 +169,30 @@ rm(subset5)
 
 
 # Subset 6-10) Various manual selections
-subset6 <- rectify %>% subset(str_detect(rectify$variable_value.y, str_c("303 Howell Way & 417 3rd Ave, Edmonds, WA 98020")), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+subset6 <- rectify %>% subset(str_detect(rectify$variable_value.y, str_c("303 Howell Way & 417 3rd Ave, Edmonds, WA 98020")),
+                              select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset6$select <- subset6$variable_value.x
 rectify <- anti_join(rectify, subset6, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset6)
 rm(subset6)
 
-subset7 <- rectify %>% subset(str_detect(rectify$variable_value.y, " Rainier Ave, Everett, WA 98201"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+subset7 <- rectify %>% subset(str_detect(rectify$variable_value.y, " Rainier Ave, Everett, WA 98201"),
+                              select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset7$select <- subset7$variable_value.x
 rectify <- anti_join(rectify, subset7, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset7)
 rm(subset7)
 
-subset8 <- rectify %>% subset(str_starts(rectify$variable_value.y, ("[:alpha:]")), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+subset8 <- rectify %>% subset(str_starts(rectify$variable_value.y, ("[:alpha:]")),
+                              select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset8$select <- subset8$variable_value.x
 rectify <- anti_join(rectify, subset8, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset8)
 rm(subset8)
 
 # Subset 9 selects the existing IRHD data over the new WSHFC data - selected since the new data appears "weird" or I confirmed the data online, etc. Somewhat arbitrary
-subset9 <- rectify %>% subset(str_detect(rectify$property_id, "18015|18016|16100|16101|16402|16002|18092|16002|17394|16408|17832|16445|16964|18086|17951|18181|16269|16794|18320|16707|18422|18379|18436"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+subset9 <- rectify %>% subset(str_detect(rectify$property_id, "18015|18016|16100|16101|16402|16002|18092|16002|17394|16408|17832|16445|16964|18086|17951|18181|16269|16794|18320|16707|18422|18379|18436"),
+                              select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset9$select <- subset9$variable_value.x
 rectify <- anti_join(rectify, subset9, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset9)
@@ -222,7 +207,8 @@ rm(subset10)
 
 # Subset 11+) As directed by housing authorities 
 #Everett Housing Authority
-subset11 <- rectify %>% subset(str_detect(rectify$property_id, "15905|15932|15961|16024|16593|17818|17820|17821|18107|18108|18109|18110|17749|17748"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+subset11 <- rectify %>% subset(str_detect(rectify$property_id, "15905|15932|15961|16024|16593|17818|17820|17821|18107|18108|18109|18110|17749|17748"),
+                               select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset11$select <- subset11$variable_value.x
 rectify <- anti_join(rectify, subset11, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset11)
@@ -236,7 +222,8 @@ rm(subset11)
 #write.csv(rectify_export, review_after_join_housingauthorities, row.names=FALSE)
 
 #All remaining changes (select newer WSHFC data - assuming it is correct)
-subset14 <- rectify %>% subset((rectify$select == ""), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+subset14 <- rectify %>% subset((rectify$select == ""),
+                               select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset14$select <- subset14$variable_value.y
 rectify <- anti_join(rectify, subset14, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset14)
