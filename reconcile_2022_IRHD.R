@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
-# DATA SOURCE: WSHFC, HASCO, THA, King County, EHA, PCHA, BHA
-# DATE MODIFIED: 02.21.2024
+# DATA SOURCE: King County, WSHFC, HASCO, THA, EHA, PCHA, BHA, HK
+# DATE MODIFIED: 02.27.2024
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -28,8 +28,6 @@ elmer_connection <- dbConnect(odbc::odbc(),
 review_after_join_housingauthorities <- "./Export4review-housingauthorities.csv" # Export for review after WSHFC-IRHD join. Help understanding why property data are changing, reach out to housing authorities or WSHFC
 review_after_join_wshfc <- "./Export4review-wshfc.csv" # Export for review after WSHFC-IRHD join. Why property data are missing from new WSHFC data but included in IRHD
 final_review_housingauthorities <- "./final_review_housingauthorities.xlsx" # Export final dataset for review by housing authorities
-#HASCO_updates_path <- ""
-#THA_updates_path <- ""
 
 address_func <- "./address_match.R"
 irhd_func <- "./irhd_cleaning_func.R"
@@ -56,15 +54,6 @@ source(wshfc_clean_script)
 
 # load cleaned data from data partners
 #source(kc_clean_script)
-
-# Only keep fields where we have new data (in the "Corrected" column)
-# HASCO_raw <- fread(HASCO_updates_path)
-# HASCO <- HASCO_raw %>%
-#   drop_na(Corrected)
-# 
-# THA_raw <- fread(THA_updates_path)
-# THA <- THA_raw %>%
-#   drop_na(Corrected)
 
 ## 2) Final tweaks -------------------------
 
