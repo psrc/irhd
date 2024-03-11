@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: King County, WSHFC, HASCO, THA, EHA, PCHA, BHA, HK
-# DATE MODIFIED: 02.27.2024
+# DATE MODIFIED: 03.11.2024
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -28,6 +28,7 @@ elmer_connection <- dbConnect(odbc::odbc(),
 review_after_join_housingauthorities <- "./Export4review-housingauthorities.csv" # Export for review after WSHFC-IRHD join. Help understanding why property data are changing, reach out to housing authorities or WSHFC
 review_after_join_wshfc <- "./Export4review-wshfc.csv" # Export for review after WSHFC-IRHD join. Why property data are missing from new WSHFC data but included in IRHD
 final_review_housingauthorities <- "./final_review_housingauthorities.xlsx" # Export final dataset for review by housing authorities
+tha_updates_file <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review - Files Recieved/final_review_PIERCE_THA_Update.xlsx"
 
 address_func <- "./address_match.R"
 irhd_func <- "./irhd_cleaning_func.R"
@@ -54,6 +55,7 @@ source(wshfc_clean_script)
 
 # load cleaned data from data partners
 #source(kc_clean_script)
+tha_updates <- read_excel(tha_updates_file, sheet = 3)
 
 ## 2) Final tweaks -------------------------
 
@@ -260,7 +262,7 @@ writeData(final_review_export, sheet = "Snohomish", x = county_snohomish_review)
 saveWorkbook(final_review_export, final_review_housingauthorities)
 
 # Add new properties, remove out-of-service, update records as needed
-#rectify <- identify_changes_irhd(IRHD_clean, joinedtablereceivedfromhousingauthorities, 'working_id')
+#rectify <- identify_changes_irhd(IRHD_clean, tha_updates, 'working_id')
 
 # Do we like the changes made? Select whether to keep existing data or accept update
 #subset <- rectify %>% subset(str_detect(

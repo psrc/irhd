@@ -136,6 +136,7 @@ identify_changes_irhd <- function(df1, df2, key) {
                    'senior',
                    'disabled',
                    'homeless',
+                   'large_household',
                    'transitional',
                    'veterans',
                    'funding_sources',
@@ -174,6 +175,7 @@ identify_changes_irhd <- function(df1, df2, key) {
                    'senior',
                    'disabled',
                    'homeless',
+                   'large_household',
                    'transitional',
                    'veterans',
                    'funding_sources',
@@ -191,7 +193,7 @@ identify_changes_irhd <- function(df1, df2, key) {
     inner_join(long_df, by=c({{key}}, 'variable_class')) %>%
     mutate("match" = ifelse(mapply(identical, variable_value.x, variable_value.y), "y", "n")) %>%
     filter(match == "n") %>%
-    drop_na(variable_value.y)
+    drop_na(c(variable_value.y, {{key}}))
   
   # Create field to indicate which variable to use
   rectify$select <- ""
