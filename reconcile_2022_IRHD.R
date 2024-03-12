@@ -28,12 +28,12 @@ elmer_connection <- dbConnect(odbc::odbc(),
 review_after_join_housingauthorities <- "./Export4review-housingauthorities.csv" # Export for review after WSHFC-IRHD join. Help understanding why property data are changing, reach out to housing authorities or WSHFC
 review_after_join_wshfc <- "./Export4review-wshfc.csv" # Export for review after WSHFC-IRHD join. Why property data are missing from new WSHFC data but included in IRHD
 final_review_housingauthorities <- "./final_review_housingauthorities.xlsx" # Export final dataset for review by housing authorities
-tha_updates_file <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review - Files Recieved/final_review_PIERCE_THA_Update.xlsx"
 
 address_func <- "./address_match.R"
 irhd_func <- "./irhd_cleaning_func.R"
 wshfc_clean_script <- "./clean_2022_WSHFC_data.R"
 kc_clean_script <- "./clean_2022_KC_data.R"
+updates_received_script <- "./clean_2022_provider_data.R"
 
 source(address_func)
 source(irhd_func)
@@ -55,7 +55,7 @@ source(wshfc_clean_script)
 
 # load cleaned data from data partners
 #source(kc_clean_script)
-tha_updates <- read_excel(tha_updates_file, sheet = 3)
+#source(updates_received_script)
 
 ## 2) Final tweaks -------------------------
 
@@ -94,7 +94,7 @@ subset2 <- rectify %>% subset((variable_class == "in_service_date" |
                                     variable_class == "bed_count"| variable_class == "property_name"|
                                     variable_class == "site_type"| variable_class == "funding_sources"|
                                     variable_class == "HOMEcity"| variable_class == "HOMEcounty"| variable_class == "HOMEstate"|
-                                    variable_class == "expiration_date"|
+                                    variable_class == "expiration_date"| variable_class == "large_household"|
                                     variable_class == "project_name"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset2$select <- subset2$variable_value.y
 rectify <- anti_join(rectify, subset2, by=c("ID"="ID")) # remove from rectify
@@ -224,6 +224,7 @@ rm(subset14)
 ## 7) Take "updates" data and update IRHD records, create IRHD_clean table -------------------------
 
 IRHD_clean <- update_irhd(IRHD, updates, 'property_id')
+rm(updates)
 
 # Add in new properties identified in new_wshfc
 IRHD_clean <- bind_rows(IRHD_clean, new_wshfc)
@@ -235,40 +236,43 @@ IRHD_clean <- datayear_cleanup(IRHD_clean)
 
 ## 8) Export for review by housing authorities, ask for new properties, remove out-of-service properties, etc -------------------------
 
-# Export IRHD_clean for review
-county_kitsap_review <- IRHD_clean %>%
-  filter(IRHD_clean$county == "Kitsap")
-
-county_pierce_review <- IRHD_clean %>%
-  filter(IRHD_clean$county == "Pierce")
-
-county_snohomish_review <- IRHD_clean %>%
-  filter(IRHD_clean$county == "Snohomish")
-
-# Create a blank workbook
-final_review_export <- createWorkbook()
-
-# Add some sheets to the workbook
-addWorksheet(final_review_export, "Kitsap")
-addWorksheet(final_review_export, "Pierce")
-addWorksheet(final_review_export, "Snohomish")
-
-# Write the data to the sheets
-writeData(final_review_export, sheet = "Kitsap", x = county_kitsap_review)
-writeData(final_review_export, sheet = "Pierce", x = county_pierce_review)
-writeData(final_review_export, sheet = "Snohomish", x = county_snohomish_review)
-
-# Export the file
-saveWorkbook(final_review_export, final_review_housingauthorities)
+# # Export IRHD_clean for review
+# county_kitsap_review <- IRHD_clean %>%
+#   filter(IRHD_clean$county == "Kitsap")
+# 
+# county_pierce_review <- IRHD_clean %>%
+#   filter(IRHD_clean$county == "Pierce")
+# 
+# county_snohomish_review <- IRHD_clean %>%
+#   filter(IRHD_clean$county == "Snohomish")
+# 
+# # Create a blank workbook
+# final_review_export <- createWorkbook()
+# 
+# # Add some sheets to the workbook
+# addWorksheet(final_review_export, "Kitsap")
+# addWorksheet(final_review_export, "Pierce")
+# addWorksheet(final_review_export, "Snohomish")
+# 
+# # Write the data to the sheets
+# writeData(final_review_export, sheet = "Kitsap", x = county_kitsap_review)
+# writeData(final_review_export, sheet = "Pierce", x = county_pierce_review)
+# writeData(final_review_export, sheet = "Snohomish", x = county_snohomish_review)
+# 
+# # Export the file
+# saveWorkbook(final_review_export, final_review_housingauthorities)
 
 # Add new properties, remove out-of-service, update records as needed
-#rectify <- identify_changes_irhd(IRHD_clean, tha_updates, 'working_id')
+rectify <- identify_changes_irhd(IRHD_clean, updates_received, 'working_id')
 
-# Do we like the changes made? Select whether to keep existing data or accept update
-#subset <- rectify %>% subset(str_detect(
+# Select new data from provider
+subset15 <- rectify %>% filter(rectify$select == "")
+subset15$select <- subset15$variable_value.y
+updates <- subset15
+rm(subset15)
 
 # Take "updates" data and update IRHD records
-#IRHD_clean <- update_irhd(IRHD_clean, updates, 'working_id')
+IRHD_clean <- update_irhd(IRHD_clean, updates, 'working_id')
 
 ## 9) Join IRHD_clean table with cleaned data from King County -------------------------
 

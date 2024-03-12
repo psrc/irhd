@@ -147,6 +147,7 @@ identify_changes_irhd <- function(df1, df2, key) {
   
   # Remove some fields that we don't need here
   long_IRHD %<>% select(c({{key}},variable_class,variable_value))
+  long_IRHD %<>% drop_na({{key}})
 
   # Pivot the mocked-up data to make it long and thin
   long_df <- df2 %>%
@@ -192,8 +193,7 @@ identify_changes_irhd <- function(df1, df2, key) {
   rectify <- long_IRHD %>%
     inner_join(long_df, by=c({{key}}, 'variable_class')) %>%
     mutate("match" = ifelse(mapply(identical, variable_value.x, variable_value.y), "y", "n")) %>%
-    filter(match == "n") %>%
-    drop_na(c(variable_value.y, {{key}}))
+    filter(match == "n")
   
   # Create field to indicate which variable to use
   rectify$select <- ""
@@ -215,6 +215,7 @@ update_irhd <- function(df1, df2, key) {
   class(updates$in_service_date) = "character"
   class(updates$zip) = "character"
   class(updates$ami_20) = "numeric"
+  class(updates$ami_25) = "numeric"
   class(updates$ami_30) = "numeric"
   class(updates$ami_35) = "numeric"
   class(updates$ami_40) = "numeric"
@@ -222,7 +223,13 @@ update_irhd <- function(df1, df2, key) {
   class(updates$ami_50) = "numeric"
   class(updates$ami_60) = "numeric"
   class(updates$ami_65) = "numeric"
+  class(updates$ami_70) = "numeric"
+  class(updates$ami_75) = "numeric"
   class(updates$ami_80) = "numeric"
+  class(updates$ami_85) = "numeric"
+  class(updates$ami_90) = "numeric"
+  class(updates$ami_100) = "numeric"
+  class(updates$ami_120) = "numeric"
   class(updates$market_rate) = "numeric"
   class(updates$manager_unit) = "numeric"
   class(updates$bedroom_0) = "numeric"
@@ -230,6 +237,7 @@ update_irhd <- function(df1, df2, key) {
   class(updates$bedroom_2) = "numeric"
   class(updates$bedroom_3) = "numeric"
   class(updates$bedroom_4) = "numeric"
+  class(updates$bedroom_5) = "numeric"
   class(updates$bedroom_unknown) = "numeric"
   class(updates$bed_count) = "numeric"
   class(updates$senior) = "numeric"
@@ -237,6 +245,9 @@ update_irhd <- function(df1, df2, key) {
   class(updates$HOMEcounty) = "numeric"
   class(updates$HOMEstate) = "numeric"
   class(updates$homeless) = "numeric"
+  class(updates$transitional) = "numeric"
+  class(updates$large_household) = "numeric"
+  class(updates$veterans) = "numeric"
   class(updates$disabled) = "numeric"
 
   # Update IRHD records as determined by the "updates" dataframe
