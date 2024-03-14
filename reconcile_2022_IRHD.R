@@ -55,7 +55,7 @@ source(wshfc_clean_script)
 
 # load cleaned data from data partners
 #source(kc_clean_script)
-#source(updates_received_script)
+source(updates_received_script)
 
 ## 2) Final tweaks -------------------------
 
@@ -233,6 +233,7 @@ IRHD_clean <- bind_rows(IRHD_clean, new_wshfc)
 IRHD_clean <- ami_cleanup(IRHD_clean)
 IRHD_clean <- unitsize_cleanup(IRHD_clean)
 IRHD_clean <- datayear_cleanup(IRHD_clean)
+IRHD_clean <- create_workingid(IRHD_clean)
 
 ## 8) Export for review by housing authorities, ask for new properties, remove out-of-service properties, etc -------------------------
 
@@ -268,6 +269,7 @@ rectify <- identify_changes_irhd(IRHD_clean, updates_received, 'working_id')
 # Select new data from provider
 subset15 <- rectify %>% filter(rectify$select == "")
 subset15$select <- subset15$variable_value.y
+rectify <- anti_join(rectify, subset15, by=c("ID"="ID"))# remove from rectify
 updates <- subset15
 rm(subset15)
 

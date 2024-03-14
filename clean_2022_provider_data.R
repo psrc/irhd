@@ -7,6 +7,7 @@
 library(readxl)
 library(janitor)
 library(data.table)
+library(dplyr)
 
 setwd("C:/Users/eclute/GitHub/irhd")
 tha_raw <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Review - Files Recieved/final_review_PIERCE_THA_Update.xlsx"
@@ -23,6 +24,5 @@ tha <- tha %>% filter(tha$data_source == "THA")
 hasco <- hasco %>% filter(!hasco$Reviewer_Comments == "")
 eva <- eva %>% filter(eva$manager == "Everett Housing Authority")
 
-
-updates_received <- rbind(tha,hasco)
-updates_received <- rbind(updates_received, eva)
+updates_received <- bind_rows(tha, hasco, eva)
+rm(tha, hasco, eva)
