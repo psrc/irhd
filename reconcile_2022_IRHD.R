@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: King County, WSHFC, HASCO, THA, EHA, PCHA, BHA, HK
-# DATE MODIFIED: 03.11.2024
+# DATE MODIFIED: 03.22.2024
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -224,10 +224,10 @@ rm(subset14)
 ## 7) Take "updates" data and update IRHD records, create IRHD_clean table -------------------------
 
 IRHD_clean <- update_irhd(IRHD, updates, 'property_id')
-rm(updates)
 
 # Add in new properties identified in new_wshfc
 IRHD_clean <- bind_rows(IRHD_clean, new_wshfc)
+rm(updates, new_wshfc, IRHD_raw, IRHD, WSHFC_cleaned)
 
 # Clean up before export to housing authorities
 IRHD_clean <- ami_cleanup(IRHD_clean)
@@ -264,6 +264,13 @@ IRHD_clean <- create_workingid(IRHD_clean)
 # saveWorkbook(final_review_export, final_review_housingauthorities)
 
 # Add new properties, remove out-of-service, update records as needed
+new <- updates_received %>% filter(Reviewer_Comments == "new") %>% select(-Reviewer_Comments)
+remove <- updates_received %>% filter(Reviewer_Comments == "remove") %>% select(-Reviewer_Comments)
+
+IRHD_clean <- rbind(IRHD_clean, new)
+IRHD_clean <- anti_join(IRHD_clean, remove, by=c("working_id" = "working_id"))
+rm(new,remove)
+
 rectify <- identify_changes_irhd(IRHD_clean, updates_received, 'working_id')
 
 # Select new data from provider
@@ -271,7 +278,7 @@ subset15 <- rectify %>% filter(rectify$select == "")
 subset15$select <- subset15$variable_value.y
 rectify <- anti_join(rectify, subset15, by=c("ID"="ID"))# remove from rectify
 updates <- subset15
-rm(subset15)
+rm(subset15,rectify)
 
 # Take "updates" data and update IRHD records
 IRHD_clean <- update_irhd(IRHD_clean, updates, 'working_id')

@@ -21,8 +21,8 @@ eva <- read_excel(eva_raw, sheet = 3)
 
 # Clean data
 tha <- tha %>% filter(tha$data_source == "THA")
-hasco <- hasco %>% filter(!hasco$Reviewer_Comments == "")
 eva <- eva %>% filter(eva$manager == "Everett Housing Authority")
+hasco <- hasco %>% filter(!(manager == "Everett Housing Authority" & !is.na(manager))) # remove EVA rows since both in SnoCo. I only want one record for each property
 
 updates_received <- bind_rows(tha, hasco, eva)
 rm(tha, hasco, eva)
