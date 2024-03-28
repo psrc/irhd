@@ -252,10 +252,10 @@ update_irhd <- function(df1, df2, key) {
 
   # Update IRHD records as determined by the "updates" dataframe
   shared_fields <- intersect(names(updates), names(IRHD_clean))                                         # fields in common
-  dupes <- IRHD_clean[duplicated({{key}}), cbind(.SD[1], number=.N), by=get(property_id)] %>%                # duplicates (to exclude)
+  dupes <- IRHD_clean[duplicated({{key}}), cbind(.SD[1], number=.N), by=eval({{key}})] %>%                # duplicates (to exclude)
     pull(working_id)
   blankfill <- IRHD_clean %>%                                                                           # create IRHD data that matches fields from updates
     .[!is.na(property_id) & working_id %not_in% (dupes), (colnames(.) %in% shared_fields), with=FALSE]  # include only common records, no duplicate keys
   updates %<>% rows_patch(blankfill, by={{key}}, unmatched="ignore")                                    # replace NA in `updates` with values from `IRHD_clean`
-  IRHD_clean %<>% .[updates, (shared_fields):=mget(paste0("i.", shared_fields)), on=.(get(property_id))]     # carry over all matching variables from updates
+  IRHD_clean %<>% .[updates, (shared_fields):=mget(paste0("i.", shared_fields)), on=eval({{key}})]     # carry over all matching variables from updates
   }

@@ -2,7 +2,7 @@
 # Title: Cleaning 2022 WSHFC data
 # Author: Eric Clute
 # Date created: 2022-11-30
-# Last Updated: 2023-12-04
+# Last Updated: 2024-03-28
 #################################################################################
 
 ## load packages-----------------------------------------------------------------
@@ -17,10 +17,10 @@ setwd("C:/Users/eclute/GitHub/irhd")
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Data/WSHFC/"
 WSHFC_raw <- read_xlsx(paste0(WSHFC_path, "PSRC report for 2022.xlsx"))
 vintage_year_cleaning_script = "2022"
-address_script <- "./address_match.R"
+address_func <- "./address_match.R"
 
 remotes::install_github("slu-openGIS/postmastr")
-source(address_script)
+source(address_func)
 
 ## 2) function --------------------------------------------------------------------
 
