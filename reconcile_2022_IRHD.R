@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: King County, WSHFC, HASCO, THA, EHA, PCHA, BHA, HK
-# DATE MODIFIED: 03.28.2024
+# DATE MODIFIED: 05.31.2024
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -261,7 +261,7 @@ IRHD_clean <- create_workingid(IRHD_clean)
 # writeData(final_review_export, sheet = "Snohomish", x = county_snohomish_review)
 # 
 # # Export the file
-# saveWorkbook(final_review_export, final_review_housingauthorities)
+# saveWorkbook(final_review_export, final_review_housingauthorities, overwrite = TRUE)
 
 # Add new properties, remove out-of-service, update records as needed
 new <- updates_received %>% filter(Reviewer_Comments == "new") %>% select(-Reviewer_Comments)
