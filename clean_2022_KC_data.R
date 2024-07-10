@@ -19,48 +19,79 @@ source(address_scrpt)
 
 ## Data cleaning ------------------------
 KC <- KC_raw
-KC$county <- "King"
-KC %<>% filter(KC$in_service_date <= KC_vintage_year | is.na(KC$in_service_date))
 
 # Adjust fields to match IRHD
 KC <- KC %>%
  rename("workingid" = "UniqueID",
+        "data_source" = "DataSourceName",
         "project_name" = "ProjectName",
         "property_name" = "PropertyName",
-        "address" = "Address",
         "city" = "City",
         "total_units" = "TotalUnits",
         "total_restricted_units" = "TotalRestrictedUnits",
-        
-        
-        
-        
-        
-        "data_source" = "DataSourceName",
+        "ami_20" = "AMI20",
+        "ami_25" = "AMI25",
+        "ami_30" = "AMI30",
+        "ami_35" = "AMI35",
+        "ami_40" = "AMI40",
+        "ami_45" = "AMI45",
+        "ami_50" = "AMI50",
+        "ami_60" = "AMI60",
+        "ami_65" = "AMI65",
+        "ami_70" = "AMI70",
+        "ami_75" = "AMI75",
+        "ami_80" = "AMI80",
+        "ami_85" = "AMI85",
+        "ami_90" = "AMI90",
+        "ami_100" = "AMI100",
+        "ami_120" = "AMI120",
+        "market_rate" = "MarketRate",
+        "manager_unit" = "ManagerUnit",
+        "bedroom_0" = "Bedroom_0",
+        "bedroom_1" = "Bedroom_1",
+        "bedroom_2" = "Bedroom_2",
+        "bedroom_3" = "Bedroom_3",
+        "bedroom_4" = "Bedroom_4",
+        "bedroom_5" = "Bedroom_5",
+        "bedroom_unknown" = "Bedroom_Unknown",
         "bed_count" = "GroupHomeOrBed",
-        "zip" = "GeoCode_Zip",
-        "full_address" = "address_standardized",
-        "expiration_date" = "ExpirationYear",
-        "property_owner" = "ProjectSponsor",
         "manager" = "ContactName",
+        "reported_address" = "Address",
+        "zip" = "GeoCode_Zip",
+        "full_address" = "Address_standardized",
         "site_type" = "PopulationServed",
-        "funding_sources" = "Funder",
         "HOME" = "HOMEUnits",
-        "policy" = "FundingSource")
+        "hits_survey" = "HITS_survey",
+        "in_service_date" = "InServiceDate",
+        "expiration_date" = "ExpirationYear",
+        "tenure" = "Tenure",
+        "funding_sources" = "Funder",
+        "policy" = "FundingSource", # FundingSource data added to the Policy field. KC may eventually build out these separately
+        "policy_detailed" = "DetailedHousingCovenant",
+        "confidentiality" = "Confidentiality",
+        "property_owner" = "ProjectSponsor")
 
-# Remove fields we don't need (Policy field is blank, data currently stored in "FundingSource" - This may change!! Watch next year)
-KC %<>% select(-c(unique_linking_ID,HITS_survey,GeoCode_Street,GeoCode_City,ProjectType,Policy))
+# Clean
+KC$county <- "King"
+incorrect_inservicedate <- KC %>% filter(KC$in_service_date > KC_vintage_year)
+KC %<>% filter(KC$in_service_date <= KC_vintage_year | is.na(KC$in_service_date))
+
+# Remove fields we don't need (Reconsider each year! Could be worth adding in the future)
+KC %<>% select(-c(unique_linking_ID, hits_survey, GeoCode_Street, GeoCode_City, ProjectType, policy_detailed))
 
 # Create 
-KC$cleaned_address <- str_c(KC$full_address,', ',KC$city,', WA ',KC$zip)
+KC$full_address <- str_c(KC$full_address,', ',KC$city,', WA ',KC$zip)
 KC_cleaned <- KC
 KC_cleaned <- add_cleaned_addresses(KC_cleaned)
 
-# Identify and remove duplicated working_id value
-anyDuplicated(KC_cleaned, by="working_id") #check for any duplicates - hopefully 0!
-# dups <- filter(KC_cleaned, working_id == "SH_5215")
-# KC_cleaned[1222,1]<-"SH_7234"
-# rm(dups)
+# Identify and remove duplicated workingid value
+
+duplicates <- KC_cleaned[!is.na(KC_cleaned$workingid) & KC_cleaned$workingid != "", ]
+duplicates <- duplicates[duplicated(duplicates$workingid) | duplicated(duplicates$workingid, fromLast = TRUE), ]
+
+anyDuplicated(KC_cleaned, by="workingid") #check for any duplicates - hopefully 0!
+dups <- filter(KC_cleaned, working_id == "SH_5215")
+KC_cleaned[1222,1]<-"SH_7234"
 
 ## Clean up --------------------------
 rm(KC_raw, KC_path, KC_vintage_year)
