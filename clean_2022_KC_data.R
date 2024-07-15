@@ -1,7 +1,7 @@
 # TITLE: Clean 2022 King County data for inclusion in IRHD
 # GEOGRAPHIES: King
 # DATA SOURCE: King County
-# DATE MODIFIED: 07.03.2024
+# DATE MODIFIED: 07.15.2024
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -89,9 +89,9 @@ KC_cleaned <- add_cleaned_addresses(KC_cleaned)
 duplicates <- KC_cleaned[!is.na(KC_cleaned$workingid) & KC_cleaned$workingid != "", ]
 duplicates <- duplicates[duplicated(duplicates$workingid) | duplicated(duplicates$workingid, fromLast = TRUE), ]
 
-anyDuplicated(KC_cleaned, by="workingid") #check for any duplicates - hopefully 0!
-dups <- filter(KC_cleaned, working_id == "SH_5215")
-KC_cleaned[1222,1]<-"SH_7234"
+#anyDuplicated(KC_cleaned, by="workingid") #check for any duplicates - hopefully 0!
+#dups <- filter(KC_cleaned, working_id == "SH_5215")
+#KC_cleaned[1222,1]<-"SH_7234"
 
 ## Clean up --------------------------
-rm(KC_raw, KC_path, KC_vintage_year)
+rm(KC_raw, KC, KC_path, KC_vintage_year, incorrect_inservicedate, duplicates)
