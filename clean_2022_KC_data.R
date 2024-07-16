@@ -22,7 +22,7 @@ KC <- KC_raw
 
 # Adjust fields to match IRHD
 KC <- KC %>%
- rename("workingid" = "UniqueID",
+ rename("working_id" = "UniqueID",
         "data_source" = "DataSourceName",
         "project_name" = "ProjectName",
         "property_name" = "PropertyName",
@@ -60,7 +60,7 @@ KC <- KC %>%
         "zip" = "GeoCode_Zip",
         "full_address" = "Address_standardized",
         "site_type" = "PopulationServed",
-        "HOME" = "HOMEUnits",
+        "home" = "HOMEUnits",
         "hits_survey" = "HITS_survey",
         "in_service_date" = "InServiceDate",
         "expiration_date" = "ExpirationYear",
@@ -77,19 +77,19 @@ incorrect_inservicedate <- KC %>% filter(KC$in_service_date > KC_vintage_year)
 KC %<>% filter(KC$in_service_date <= KC_vintage_year | is.na(KC$in_service_date))
 
 # Remove fields we don't need (Reconsider each year! Could be worth adding in the future)
-KC %<>% select(-c(unique_linking_ID, hits_survey, GeoCode_Street, GeoCode_City, ProjectType, policy_detailed))
+KC %<>% select(-c(unique_linking_ID, hits_survey, GeoCode_Street, GeoCode_City, ProjectType, policy_detailed, Policy))
 
 # Create 
 KC$full_address <- str_c(KC$full_address,', ',KC$city,', WA ',KC$zip)
 KC_cleaned <- KC
 KC_cleaned <- add_cleaned_addresses(KC_cleaned)
 
-# Identify and remove duplicated workingid value
+# Identify and remove duplicated working_id value
 
-duplicates <- KC_cleaned[!is.na(KC_cleaned$workingid) & KC_cleaned$workingid != "", ]
-duplicates <- duplicates[duplicated(duplicates$workingid) | duplicated(duplicates$workingid, fromLast = TRUE), ]
+duplicates <- KC_cleaned[!is.na(KC_cleaned$working_id) & KC_cleaned$working_id != "", ]
+duplicates <- duplicates[duplicated(duplicates$working_id) | duplicated(duplicates$working_id, fromLast = TRUE), ]
 
-#anyDuplicated(KC_cleaned, by="workingid") #check for any duplicates - hopefully 0!
+#anyDuplicated(KC_cleaned, by="working_id") #check for any duplicates - hopefully 0!
 #dups <- filter(KC_cleaned, working_id == "SH_5215")
 #KC_cleaned[1222,1]<-"SH_7234"
 

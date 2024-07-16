@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: King County, WSHFC, HASCO, THA, EHA, PCHA, BHA, HK
-# DATE MODIFIED: 05.31.2024
+# DATE MODIFIED: 07.15.2024
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -54,7 +54,7 @@ IRHD_raw <- dbReadTable(elmer_connection, SQL(sql_import))
 source(wshfc_clean_script)
 
 # load cleaned data from data partners
-#source(kc_clean_script)
+source(kc_clean_script)
 source(updates_received_script)
 
 ## 2) Final tweaks -------------------------
@@ -227,7 +227,7 @@ IRHD_clean <- update_irhd(IRHD, updates, 'property_id')
 
 # Add in new properties identified in new_wshfc
 IRHD_clean <- bind_rows(IRHD_clean, new_wshfc)
-rm(updates, new_wshfc, IRHD_raw, IRHD, WSHFC_cleaned)
+rm(updates, new_wshfc, IRHD_raw, IRHD, WSHFC_cleaned, rectify, elmer_connection)
 
 # Clean up before export to housing authorities
 IRHD_clean <- ami_cleanup(IRHD_clean)
@@ -285,7 +285,7 @@ IRHD_clean <- update_irhd(IRHD_clean, updates, 'working_id')
 
 ## 9) Join IRHD_clean table with cleaned data from King County -------------------------
 
-# IRHD_clean <- rbind(IRHD_clean, KC_cleaned,fill=TRUE)
+IRHD_clean <- rbind(IRHD_clean, KC_cleaned,fill=TRUE)
 
 ## 10) Final Cleanup ----------------------
 IRHD_clean <- create_workingid(IRHD_clean)
@@ -307,6 +307,7 @@ dups <- IRHD_clean %>%
   mutate(n = n()) %>%
   filter(n > 1)
 dups <- filter(dups, !is.na(working_id))
+rm(updates_received, dups)
 
 ## 11) Summary table by County and AMI/Unit Size -------------------------
 IRHD_county_bedrooms <- summary_county_bedrooms(IRHD_clean)
