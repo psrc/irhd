@@ -67,7 +67,7 @@ IRHD %<>% select(-c(created_at,updated_at,sro,shape,irhd_property_id)) # Remove 
 
 new_wshfc <- anti_join(WSHFC_cleaned, IRHD, by = "property_id")
 
-## 4) Locate records in IRHD not in WSHFC_cleaned (No longer in WSHFC data. Will need to be verified (did they go offline, etc?)) -------------------------
+## 4) Locate records in IRHD not in WSHFC_cleaned (No longer in WSHFC data. Nona White (WSHFC) confirmed these were filtered out by "site type". Assisted living, DV, group home, manufactured housing)) -------------------------
 
 no_match_irhd <- anti_join(IRHD, WSHFC_cleaned, by = "property_id")
 no_match_irhd <- no_match_irhd %>% drop_na(property_id)
@@ -227,7 +227,6 @@ IRHD_clean <- update_irhd(IRHD, updates, 'property_id')
 
 # Add in new properties identified in new_wshfc
 IRHD_clean <- bind_rows(IRHD_clean, new_wshfc)
-rm(updates, new_wshfc, IRHD_raw, IRHD, WSHFC_cleaned, rectify, elmer_connection)
 
 # Clean up before export to housing authorities
 IRHD_clean <- ami_cleanup(IRHD_clean)
@@ -269,7 +268,6 @@ remove <- updates_received %>% filter(Reviewer_Comments == "remove") %>% select(
 
 IRHD_clean <- rbind(IRHD_clean, new)
 IRHD_clean <- anti_join(IRHD_clean, remove, by=c("working_id" = "working_id"))
-rm(new,remove)
 
 rectify <- identify_changes_irhd(IRHD_clean, updates_received, 'working_id')
 
@@ -278,7 +276,7 @@ subset15 <- rectify %>% filter(rectify$select == "")
 subset15$select <- subset15$variable_value.y
 rectify <- anti_join(rectify, subset15, by=c("ID"="ID"))# remove from rectify
 updates <- subset15
-rm(subset15,rectify)
+rm(subset15)
 
 # Take "updates" data and update IRHD records
 IRHD_clean <- update_irhd(IRHD_clean, updates, 'working_id')
@@ -289,8 +287,6 @@ IRHD_clean <- rbind(IRHD_clean, KC_cleaned,fill=TRUE)
 
 ## 10) Final Cleanup ----------------------
 IRHD_clean <- create_workingid(IRHD_clean)
-IRHD_clean <- ami_cleanup(IRHD_clean)
-IRHD_clean <- unitsize_cleanup(IRHD_clean)
 IRHD_clean <- datayear_cleanup(IRHD_clean)
 
 # check for any duplicates - hopefully 0!
@@ -307,7 +303,9 @@ dups <- IRHD_clean %>%
   mutate(n = n()) %>%
   filter(n > 1)
 dups <- filter(dups, !is.na(working_id))
-rm(updates_received, dups)
+
+# clean up environment
+#rm(updates_received, updates, no_match_irhd, KC_cleaned, dups, updates, new_wshfc, IRHD_raw, IRHD, WSHFC_cleaned, rectify, new, remove)
 
 ## 11) Summary table by County and AMI/Unit Size -------------------------
 IRHD_county_bedrooms <- summary_county_bedrooms(IRHD_clean)
@@ -326,3 +324,8 @@ new_IRHD_county <- summary_county(new_IRHD)
 # dbWriteTable(conn = elmer_connection, name = table_id, value = IRHD_clean, overwrite = TRUE)
 # dbExecute(conn=elmer_connection, statement=sql_export)
 # dbDisconnect(elmer_connection)
+
+
+
+kc_cleaned_new <- KC_cleaned %>% filter(is.na(KC_cleaned$working_id))
+
