@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: King County, WSHFC, HASCO, THA, EHA, PCHA, BHA, HK
-# DATE MODIFIED: 07.15.2024
+# DATE MODIFIED: 07.17.2024
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -286,7 +286,8 @@ IRHD_clean <- update_irhd(IRHD_clean, updates, 'working_id')
 IRHD_clean <- rbind(IRHD_clean, KC_cleaned,fill=TRUE)
 
 ## 10) Final Cleanup ----------------------
-IRHD_clean <- create_workingid(IRHD_clean)
+#IRHD_clean <- create_workingid(IRHD_clean)
+IRHD_clean <- ami_cleanup(IRHD_clean)
 IRHD_clean <- datayear_cleanup(IRHD_clean)
 
 # check for any duplicates - hopefully 0!
@@ -305,7 +306,7 @@ dups <- IRHD_clean %>%
 dups <- filter(dups, !is.na(working_id))
 
 # clean up environment
-#rm(updates_received, updates, no_match_irhd, KC_cleaned, dups, updates, new_wshfc, IRHD_raw, IRHD, WSHFC_cleaned, rectify, new, remove)
+rm(updates_received, updates, no_match_irhd, KC_cleaned, dups, updates, new_wshfc, IRHD_raw, IRHD, WSHFC_cleaned, rectify, new, remove)
 
 ## 11) Summary table by County and AMI/Unit Size -------------------------
 IRHD_county_bedrooms <- summary_county_bedrooms(IRHD_clean)
@@ -324,8 +325,3 @@ new_IRHD_county <- summary_county(new_IRHD)
 # dbWriteTable(conn = elmer_connection, name = table_id, value = IRHD_clean, overwrite = TRUE)
 # dbExecute(conn=elmer_connection, statement=sql_export)
 # dbDisconnect(elmer_connection)
-
-
-
-kc_cleaned_new <- KC_cleaned %>% filter(is.na(KC_cleaned$working_id))
-

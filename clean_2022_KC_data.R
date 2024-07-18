@@ -10,7 +10,7 @@ library(readxl)
 library(magrittr)
 
 KC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Data/King County/"
-KC_raw <- read_csv(paste0(KC_path, "King County Income-restricted Housing Database 2023.csv"))
+KC_raw <- read_csv(paste0(KC_path, "King County Income-restricted Housing Database 2023.csv")) # file name says 2023, mistake. Data is 2022 vintage
 KC_vintage_year = "2022"
 address_scrpt <- "./address_match.R"
 
@@ -26,7 +26,7 @@ KC <- KC %>%
         "data_source" = "DataSourceName",
         "project_name" = "ProjectName",
         "property_name" = "PropertyName",
-        "city" = "City",
+        "city" = "GeoCode_City",
         "total_units" = "TotalUnits",
         "total_restricted_units" = "TotalRestrictedUnits",
         "ami_20" = "AMI20",
@@ -56,9 +56,9 @@ KC <- KC %>%
         "bedroom_unknown" = "Bedroom_Unknown",
         "bed_count" = "GroupHomeOrBed",
         "manager" = "ContactName",
-        "reported_address" = "Address",
+        "reported_address" = "Address_standardized",
         "zip" = "GeoCode_Zip",
-        "full_address" = "Address_standardized",
+        "full_address" = "GeoCode_Street",
         "site_type" = "PopulationServed",
         "home" = "HOMEUnits",
         "hits_survey" = "HITS_survey",
@@ -77,7 +77,7 @@ incorrect_inservicedate <- KC %>% filter(KC$in_service_date > KC_vintage_year)
 KC %<>% filter(KC$in_service_date <= KC_vintage_year | is.na(KC$in_service_date))
 
 # Remove fields we don't need (Reconsider each year! Could be worth adding in the future)
-KC %<>% select(-c(unique_linking_ID, hits_survey, GeoCode_Street, GeoCode_City, ProjectType, policy_detailed, Policy))
+KC %<>% select(-c(unique_linking_ID, hits_survey, Address, City, ProjectType, policy_detailed, Policy))
 
 # Create 
 KC$full_address <- str_c(KC$full_address,', ',KC$city,', WA ',KC$zip)

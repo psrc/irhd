@@ -79,7 +79,7 @@ create_workingid <- function(df) {
 ami_cleanup <- function(df) {
   
   IRHD_clean <- df
-  AMIcols<-as.character(quote(c(ami_20, ami_25, ami_30, ami_35, ami_40, ami_45, ami_50, ami_60, ami_65, ami_70, ami_75, ami_80, ami_85, ami_90,  ami_100, ami_120)))[-1]
+  AMIcols<-as.character(quote(c(ami_20, ami_25, ami_30, ami_35, ami_40, ami_45, ami_50, ami_60, ami_65, ami_70, ami_75, ami_80, ami_85, ami_90, ami_100, ami_120)))[-1]
   
   IRHD_clean %<>%
     mutate(across(all_of(AMIcols), ~replace_na(.,0) )%>%
