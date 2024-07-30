@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: King County, WSHFC, HASCO, THA, EHA, PCHA, BHA, HK
-# DATE MODIFIED: 07.17.2024
+# DATE MODIFIED: 07.30.2024
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -284,6 +284,22 @@ IRHD_clean <- update_irhd(IRHD_clean, updates, 'working_id')
 ## 9) Join IRHD_clean table with cleaned data from King County -------------------------
 
 IRHD_clean <- rbind(IRHD_clean, KC_cleaned,fill=TRUE)
+
+# Identify & carry over assigned working_ids from prior vintage
+## This step may be clarified in future if KC decides to create a key field to help with matching/tracking changes over time
+
+# IRHD_raw_kc <- IRHD_raw %>% filter(county == "King") %>%
+#                            # filter(!is.na(cleaned_address)) %>%
+#                             mutate(kc_match = paste(project_name, property_name, total_units, zip, sep = " - "))
+# 
+# kc_cleaned_no_wid <- KC_cleaned %>% filter(is.na(working_id)) %>%
+#                                   #  filter(!is.na(cleaned_address)) %>%
+#                                     mutate(kc_match = paste(project_name, property_name, total_units, zip, sep = " - "))
+# 
+# # Perform the left join
+# kc_temp <- left_join(kc_cleaned_no_wid,
+#                      select(IRHD_raw_kc, kc_match, working_id),
+#                      by = "kc_match")
 
 ## 10) Final Cleanup ----------------------
 #IRHD_clean <- create_workingid(IRHD_clean)
