@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: King County, WSHFC, HASCO, THA, EHA, PCHA, BHA, HK
-# DATE MODIFIED: 07.30.2024
+# DATE MODIFIED: 07.31.2024
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -47,7 +47,7 @@ sql_export <- paste('exec irhd.merge_irhd_properties', vintage_year)
 
 ## 1) load data -------------------------
 
-# load all IRHD records from Elmer
+# import last vintage of IRHD from Elmer
 IRHD_raw <- dbReadTable(elmer_connection, SQL(sql_import))
 
 # load cleaned WSHFC data
@@ -57,11 +57,40 @@ source(wshfc_clean_script)
 source(kc_clean_script)
 source(updates_received_script)
 
-## 2) Final tweaks -------------------------
+## 2) Final tweaks to incoming data -------------------------
 
 IRHD_raw <- IRHD_raw %>% filter(data_year == last_vintage)
 IRHD <- IRHD_raw %>% filter(!(county == "King")) # King county handled separately
 IRHD %<>% select(-c(created_at,updated_at,sro,shape,irhd_property_id)) # Remove unneeded fields
+
+# Clean KC data - Identify & carry over assigned working_ids from prior vintage
+## This step may be clarified in future if KC decides to create a key field to help with matching/tracking changes over time
+
+IRHD_raw_kc <- IRHD_raw %>% filter(county == "King") %>%
+                            filter(working_id != "SH_7289") %>% # Removed duplicate from prior vintage (La Madera Apartment Homes)
+                            filter(working_id != "SH_7290") %>% # Removed duplicate from prior vintage (Larc @ Burien)
+                            filter(working_id != "SH_7293") %>% # Removed duplicate from prior vintage (Panorama Apartments)
+                            filter(working_id != "SH_7281") %>% # Removed duplicate from prior vintage (Crossroads Senior Living)
+                            mutate(kc_match = paste(project_name, property_name, total_units, zip, sep = " - "))
+
+kc_cleaned_with_wid <- KC_cleaned %>% filter(!is.na(working_id))
+kc_cleaned_no_wid <- KC_cleaned %>% filter(is.na(working_id)) %>%
+                                    mutate(kc_match = paste(project_name, property_name, total_units, zip, sep = " - "))
+
+# Join, matching on newly created kc_match
+kc_cleaned_no_wid <- left_join(kc_cleaned_no_wid,
+                               select(IRHD_raw_kc, kc_match, working_id),
+                               by = "kc_match")
+
+kc_cleaned_no_wid <- kc_cleaned_no_wid %>%
+  select(-c(working_id.x, kc_match)) %>%  # Remove the column "working_id.x"
+  rename(working_id = working_id.y)  # Rename "working_id.y" to "working_id"
+
+# Append kc_cleaned_no_wid to kc_cleaned_with_wid to create an updated KC_cleaned df
+KC_cleaned <- kc_cleaned_with_wid %>%
+  bind_rows(kc_cleaned_no_wid)
+
+rm(IRHD_raw_kc,kc_cleaned_no_wid,kc_cleaned_with_wid)
 
 ## 3) Locate records in WSHFC not in IRHD (likely new records/properties) -------------------------
 
@@ -117,7 +146,7 @@ subset4 <- rectify %>% subset((variable_class == "total_units" | variable_class 
                                     variable_class == "ami_60"| variable_class == "ami_65"|
                                     variable_class == "ami_70"| variable_class == "ami_75"|
                                     variable_class == "ami_80"| variable_class == "ami_85"|
-                                    variable_class == "ami_90"| variable_class == "ami_100"|
+                                    variable_class == "ami_90"| variable_class == "ami_100"| variable_class == "ami_120"|
                                     variable_class == "market_rate"| variable_class == "manager_unit"|
                                     variable_class == "bedroom_0"| variable_class == "bedroom_1"| variable_class == "bedroom_2"| variable_class == "bedroom_3"|
                                     variable_class == "bedroom_4"| variable_class == "bedroom_5"| variable_class == "bedroom_unknown"|
@@ -220,13 +249,12 @@ rectify <- anti_join(rectify, subset14, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset14)
 rm(subset14)
 
-
-## 7) Take "updates" data and update IRHD records, create IRHD_clean table -------------------------
+## 7) Take "updates" data and update IRHD records, join cleaned KC data, create IRHD_clean table -------------------------
 
 IRHD_clean <- update_irhd(IRHD, updates, 'property_id')
 
-# Add in new properties identified in new_wshfc
-IRHD_clean <- bind_rows(IRHD_clean, new_wshfc)
+# Add in new properties identified in new_wshfc as well as all cleaned KC data
+IRHD_clean <- rbind(IRHD_clean, new_wshfc, KC_cleaned, fill=TRUE)
 
 # Clean up before export to housing authorities
 IRHD_clean <- ami_cleanup(IRHD_clean)
@@ -266,7 +294,7 @@ IRHD_clean <- create_workingid(IRHD_clean)
 new <- updates_received %>% filter(Reviewer_Comments == "new") %>% select(-Reviewer_Comments)
 remove <- updates_received %>% filter(Reviewer_Comments == "remove") %>% select(-Reviewer_Comments)
 
-IRHD_clean <- rbind(IRHD_clean, new)
+IRHD_clean <- rbind(IRHD_clean, new, fill = TRUE)
 IRHD_clean <- anti_join(IRHD_clean, remove, by=c("working_id" = "working_id"))
 
 rectify <- identify_changes_irhd(IRHD_clean, updates_received, 'working_id')
@@ -281,30 +309,11 @@ rm(subset15)
 # Take "updates" data and update IRHD records
 IRHD_clean <- update_irhd(IRHD_clean, updates, 'working_id')
 
-## 9) Join IRHD_clean table with cleaned data from King County -------------------------
-
-IRHD_clean <- rbind(IRHD_clean, KC_cleaned,fill=TRUE)
-
-# Identify & carry over assigned working_ids from prior vintage
-## This step may be clarified in future if KC decides to create a key field to help with matching/tracking changes over time
-
-# IRHD_raw_kc <- IRHD_raw %>% filter(county == "King") %>%
-#                            # filter(!is.na(cleaned_address)) %>%
-#                             mutate(kc_match = paste(project_name, property_name, total_units, zip, sep = " - "))
-# 
-# kc_cleaned_no_wid <- KC_cleaned %>% filter(is.na(working_id)) %>%
-#                                   #  filter(!is.na(cleaned_address)) %>%
-#                                     mutate(kc_match = paste(project_name, property_name, total_units, zip, sep = " - "))
-# 
-# # Perform the left join
-# kc_temp <- left_join(kc_cleaned_no_wid,
-#                      select(IRHD_raw_kc, kc_match, working_id),
-#                      by = "kc_match")
-
 ## 10) Final Cleanup ----------------------
-#IRHD_clean <- create_workingid(IRHD_clean)
 IRHD_clean <- ami_cleanup(IRHD_clean)
+IRHD_clean <- unitsize_cleanup(IRHD_clean)
 IRHD_clean <- datayear_cleanup(IRHD_clean)
+IRHD_clean <- create_workingid(IRHD_clean)
 
 # check for any duplicates - hopefully 0!
 dups <- IRHD_clean %>%

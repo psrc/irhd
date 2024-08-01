@@ -74,7 +74,10 @@ KC <- KC %>%
 # Clean
 KC$county <- "King"
 incorrect_inservicedate <- KC %>% filter(KC$in_service_date > KC_vintage_year)
-KC %<>% filter(KC$in_service_date <= KC_vintage_year | is.na(KC$in_service_date))
+KC %<>% filter(KC$in_service_date <= KC_vintage_year | is.na(KC$in_service_date)) %>%
+        slice(-1678) # Removing duplicate record (Hsh Apartments)
+
+class(KC$in_service_date) = "character"
 
 # Remove fields we don't need (Reconsider each year! Could be worth adding in the future)
 KC %<>% select(-c(unique_linking_ID, hits_survey, Address, City, ProjectType, policy_detailed, Policy))
