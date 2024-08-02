@@ -136,6 +136,7 @@ identify_changes_irhd <- function(df1, df2, key) {
                    'senior',
                    'disabled',
                    'homeless',
+                   'sro',
                    'large_household',
                    'transitional',
                    'veterans',
@@ -176,6 +177,7 @@ identify_changes_irhd <- function(df1, df2, key) {
                    'senior',
                    'disabled',
                    'homeless',
+                   'sro',
                    'large_household',
                    'transitional',
                    'veterans',
@@ -245,6 +247,7 @@ update_irhd <- function(df1, df2, key) {
   class(updates$HOMEcounty) = "numeric"
   class(updates$HOMEstate) = "numeric"
   class(updates$homeless) = "numeric"
+  class(updates$sro) = "numeric"
   class(updates$transitional) = "numeric"
   class(updates$large_household) = "numeric"
   class(updates$veterans) = "numeric"

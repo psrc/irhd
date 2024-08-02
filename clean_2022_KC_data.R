@@ -1,27 +1,27 @@
 # TITLE: Clean 2022 King County data for inclusion in IRHD
 # GEOGRAPHIES: King
 # DATA SOURCE: King County
-# DATE MODIFIED: 07.15.2024
+# DATE MODIFIED: 08.02.2024
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
 library(tidyverse)
 library(readxl)
 library(magrittr)
+library(vroom)
 
 KC_path <- "J:/Projects/IncomeRestrictedHsgDB/2022 vintage/Data/King County/"
-KC_raw <- read_csv(paste0(KC_path, "King County Income-restricted Housing Database 2023.csv")) # file name says 2023, mistake. Data is 2022 vintage
 KC_vintage_year = "2022"
 address_scrpt <- "./address_match.R"
-
-remotes::install_github("slu-openGIS/postmastr")
 source(address_scrpt)
 
+## Import ----------------------
+KC_raw <- read_csv(paste0(KC_path, "King County Income-restricted Housing Database 2023.csv")) # file name says 2023, mistake. Data is 2022 vintage
+
 ## Data cleaning ------------------------
-KC <- KC_raw
 
 # Adjust fields to match IRHD
-KC <- KC %>%
+KC <- KC_raw %>%
  rename("working_id" = "UniqueID",
         "data_source" = "DataSourceName",
         "project_name" = "ProjectName",
@@ -91,10 +91,6 @@ KC_cleaned <- add_cleaned_addresses(KC_cleaned)
 
 duplicates <- KC_cleaned[!is.na(KC_cleaned$working_id) & KC_cleaned$working_id != "", ]
 duplicates <- duplicates[duplicated(duplicates$working_id) | duplicated(duplicates$working_id, fromLast = TRUE), ]
-
-#anyDuplicated(KC_cleaned, by="working_id") #check for any duplicates - hopefully 0!
-#dups <- filter(KC_cleaned, working_id == "SH_5215")
-#KC_cleaned[1222,1]<-"SH_7234"
 
 ## Clean up --------------------------
 rm(KC_raw, KC, KC_path, KC_vintage_year, incorrect_inservicedate, duplicates)

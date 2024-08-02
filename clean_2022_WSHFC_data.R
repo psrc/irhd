@@ -2,7 +2,7 @@
 # Title: Cleaning 2022 WSHFC data
 # Author: Eric Clute
 # Date created: 2022-11-30
-# Last Updated: 2024-03-28
+# Last Updated: 2024-08-02
 #################################################################################
 
 ## load packages-----------------------------------------------------------------
@@ -79,6 +79,7 @@ select_and_arrange_columns_function <- function(df){
                     "disabled",
                     "farmworker",
                     "homeless",
+                    "sro",
                     "large_household",
                     "transitional",
                     "veterans",
@@ -230,6 +231,7 @@ WSHFC_cleaned <- WSHFC_cleaned %>%
          reported_address = `Address`,
          county = `County`,
          farmworker = `Farmworker`,
+         sro = `SRO`,
          homeless = `Homeless`,
          transitional = `Transitional`,
          data_source = `DataSource`,

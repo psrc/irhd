@@ -1,7 +1,7 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: King County, WSHFC, HASCO, THA, EHA, PCHA, BHA, HK
-# DATE MODIFIED: 07.31.2024
+# DATE MODIFIED: 08.02.2024
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -15,9 +15,22 @@ library(dplyr)
 library(odbc)
 library(DBI)
 library(openxlsx)
-setwd("C:/Users/eclute/GitHub/irhd")
 
-remotes::install_github("slu-openGIS/postmastr")
+setwd("C:/Users/eclute/GitHub/irhd")
+review_after_join_housingauthorities <- "./Export4review-housingauthorities.csv" # Export for review after WSHFC-IRHD join. Help understanding why property data are changing, reach out to housing authorities or WSHFC
+review_after_join_wshfc <- "./Export4review-wshfc.csv" # Export for review after WSHFC-IRHD join. Why property data are missing from new WSHFC data but included in IRHD
+final_review_housingauthorities <- "./final_review_housingauthorities.xlsx" # Export final dataset for review by housing authorities
+
+irhd_func <- "./irhd_cleaning_func.R"
+wshfc_clean_script <- "./clean_2022_WSHFC_data.R"
+kc_clean_script <- "./clean_2022_KC_data.R"
+updates_received_script <- "./clean_2022_provider_data.R"
+
+source(irhd_func)
+
+`%not_in%` <- Negate(`%in%`)
+vintage_year <- 2022
+last_vintage <- vintage_year - 1
 
 elmer_connection <- dbConnect(odbc::odbc(),
                               driver = "SQL Server",
@@ -25,43 +38,23 @@ elmer_connection <- dbConnect(odbc::odbc(),
                               database = "Elmer",
                               trusted_connection = "yes")
 
-review_after_join_housingauthorities <- "./Export4review-housingauthorities.csv" # Export for review after WSHFC-IRHD join. Help understanding why property data are changing, reach out to housing authorities or WSHFC
-review_after_join_wshfc <- "./Export4review-wshfc.csv" # Export for review after WSHFC-IRHD join. Why property data are missing from new WSHFC data but included in IRHD
-final_review_housingauthorities <- "./final_review_housingauthorities.xlsx" # Export final dataset for review by housing authorities
-
-address_func <- "./address_match.R"
-irhd_func <- "./irhd_cleaning_func.R"
-wshfc_clean_script <- "./clean_2022_WSHFC_data.R"
-kc_clean_script <- "./clean_2022_KC_data.R"
-updates_received_script <- "./clean_2022_provider_data.R"
-
-source(address_func)
-source(irhd_func)
-
-`%not_in%` <- Negate(`%in%`)
-vintage_year <- 2022
-last_vintage <- vintage_year - 1
-
+table_id <- Id(schema = "stg", table = "irhd")
+sql_bing_maps_key <- Sys.getenv("BING_MAPS_KEY")
 sql_import <- paste('irhd.properties')
-sql_export <- paste('exec irhd.merge_irhd_properties', vintage_year)
+sql_export <- paste0('exec irhd.merge_irhd_properties ', vintage_year, ",'", sql_bing_maps_key, "'")
 
 ## 1) load data -------------------------
 
-# import last vintage of IRHD from Elmer
-IRHD_raw <- dbReadTable(elmer_connection, SQL(sql_import))
-
-# load cleaned WSHFC data
-source(wshfc_clean_script)
-
-# load cleaned data from data partners
-source(kc_clean_script)
-source(updates_received_script)
+IRHD_raw <- dbReadTable(elmer_connection, SQL(sql_import)) # import last vintage of IRHD from Elmer
+source(wshfc_clean_script) # cleaned WSHFC data
+source(kc_clean_script) # cleaned KC data
+source(updates_received_script) #cleaned data from providers
 
 ## 2) Final tweaks to incoming data -------------------------
 
 IRHD_raw <- IRHD_raw %>% filter(data_year == last_vintage)
 IRHD <- IRHD_raw %>% filter(!(county == "King")) # King county handled separately
-IRHD %<>% select(-c(created_at,updated_at,sro,shape,irhd_property_id)) # Remove unneeded fields
+IRHD %<>% select(-c(created_at,updated_at,shape,irhd_property_id)) # Remove unneeded fields
 
 # Clean KC data - Identify & carry over assigned working_ids from prior vintage
 ## This step may be clarified in future if KC decides to create a key field to help with matching/tracking changes over time
@@ -331,7 +324,7 @@ dups <- IRHD_clean %>%
 dups <- filter(dups, !is.na(working_id))
 
 # clean up environment
-rm(updates_received, updates, no_match_irhd, KC_cleaned, dups, updates, new_wshfc, IRHD_raw, IRHD, WSHFC_cleaned, rectify, new, remove)
+rm(updates_received, no_match_irhd, KC_cleaned, dups, updates, new_wshfc, IRHD_raw, IRHD, WSHFC_cleaned, rectify, new, remove)
 
 ## 11) Summary table by County and AMI/Unit Size -------------------------
 IRHD_county_bedrooms <- summary_county_bedrooms(IRHD_clean)
@@ -346,7 +339,6 @@ new_IRHD_county_ami <- summary_county_ami(new_IRHD)
 new_IRHD_county <- summary_county(new_IRHD)
 
 ## 13) Export to Elmer IRHD_clean -------------------------
-# table_id <- Id(schema = "stg", table = "irhd")
 # dbWriteTable(conn = elmer_connection, name = table_id, value = IRHD_clean, overwrite = TRUE)
 # dbExecute(conn=elmer_connection, statement=sql_export)
 # dbDisconnect(elmer_connection)
