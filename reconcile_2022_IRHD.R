@@ -34,7 +34,7 @@ last_vintage <- vintage_year - 1
 
 elmer_connection <- dbConnect(odbc::odbc(),
                               driver = "SQL Server",
-                              server = "AWS-PROD-SQL\\Sockeye",
+                              server = "SQLserver",
                               database = "Elmer",
                               trusted_connection = "yes")
 
