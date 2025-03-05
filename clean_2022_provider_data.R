@@ -1,4 +1,4 @@
-# TITLE: Clean 2022 Data Recieved from Data Providers
+# TITLE: Clean 2022 Data Received from Data Providers
 # DATA SOURCE: HASCO, THA, EHA
 # DATE MODIFIED: 07.17.2024
 # AUTHOR: Eric Clute
