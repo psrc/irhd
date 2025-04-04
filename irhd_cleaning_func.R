@@ -204,61 +204,50 @@ identify_changes_irhd <- function(df1, df2, key) {
 
 # CREATE FUNCTION: UPDATE IRHD WITH SELECTED CHANGES (df1 = "IRHD" df, df2 = "updates" df. key = matching field)
 update_irhd <- function(df1, df2, key) {
-  # Create new clean IRHD file
-  IRHD_clean <- df1
-  setDT(IRHD_clean)
-  
-  # Transform "updates" for updating existing IRHD
-  updates <- df2 %>% pivot_wider(id_cols = c({{key}}), names_from = 'variable_class', values_from = 'select') %>%
-    setDT()
-  class(updates$project_id) = "character"
-  class(updates$total_units) = "numeric"
-  class(updates$total_restricted_units) = "numeric"
-  class(updates$in_service_date) = "character"
-  class(updates$zip) = "character"
-  class(updates$ami_20) = "numeric"
-  class(updates$ami_25) = "numeric"
-  class(updates$ami_30) = "numeric"
-  class(updates$ami_35) = "numeric"
-  class(updates$ami_40) = "numeric"
-  class(updates$ami_45) = "numeric"
-  class(updates$ami_50) = "numeric"
-  class(updates$ami_60) = "numeric"
-  class(updates$ami_65) = "numeric"
-  class(updates$ami_70) = "numeric"
-  class(updates$ami_75) = "numeric"
-  class(updates$ami_80) = "numeric"
-  class(updates$ami_85) = "numeric"
-  class(updates$ami_90) = "numeric"
-  class(updates$ami_100) = "numeric"
-  class(updates$ami_120) = "numeric"
-  class(updates$market_rate) = "numeric"
-  class(updates$manager_unit) = "numeric"
-  class(updates$bedroom_0) = "numeric"
-  class(updates$bedroom_1) = "numeric"
-  class(updates$bedroom_2) = "numeric"
-  class(updates$bedroom_3) = "numeric"
-  class(updates$bedroom_4) = "numeric"
-  class(updates$bedroom_5) = "numeric"
-  class(updates$bedroom_unknown) = "numeric"
-  class(updates$bed_count) = "numeric"
-  class(updates$senior) = "numeric"
-  class(updates$HOMEcity) = "numeric"
-  class(updates$HOMEcounty) = "numeric"
-  class(updates$HOMEstate) = "numeric"
-  class(updates$homeless) = "numeric"
-  class(updates$sro) = "numeric"
-  class(updates$transitional) = "numeric"
-  class(updates$large_household) = "numeric"
-  class(updates$veterans) = "numeric"
-  class(updates$disabled) = "numeric"
-
-  # Update IRHD records as determined by the "updates" dataframe
-  shared_fields <- intersect(names(updates), names(IRHD_clean))                                         # fields in common
-  dupes <- IRHD_clean[duplicated({{key}}), cbind(.SD[1], number=.N), by=eval({{key}})] %>%                # duplicates (to exclude)
-    pull(working_id)
-  blankfill <- IRHD_clean %>%                                                                           # create IRHD data that matches fields from updates
-    .[!is.na(property_id) & working_id %not_in% (dupes), (colnames(.) %in% shared_fields), with=FALSE]  # include only common records, no duplicate keys
-  updates %<>% rows_patch(blankfill, by={{key}}, unmatched="ignore")                                    # replace NA in `updates` with values from `IRHD_clean`
-  IRHD_clean %<>% .[updates, (shared_fields):=mget(paste0("i.", shared_fields)), on=eval({{key}})]     # carry over all matching variables from updates
+  # Check inputs
+  if (!key %in% colnames(df1) | !key %in% colnames(df2)) {
+    stop(paste("Key column", key, "must exist in both input tables"))
   }
+  
+  # Create new clean IRHD file & wider updates file
+  IRHD_clean <- setDT(df1)
+  updates <- setDT(df2) %>% .[!is.na(select)] %>%
+    dcast(formula = paste0(key, " ~ variable_class"), value.var = "select")
+  
+  # Specify column classes
+  col_classes <- list(
+    character = c("project_id", "in_service_date", "zip"),
+    numeric = c("total_units", "total_restricted_units", 
+                "ami_20", "ami_25", "ami_30", "ami_35", "ami_40", "ami_45", "ami_50", 
+                "ami_60", "ami_65", "ami_70", "ami_75", "ami_80", "ami_85", "ami_90", 
+                "ami_100", "ami_120", "market_rate", "manager_unit", 
+                "bedroom_0", "bedroom_1", "bedroom_2", "bedroom_3", "bedroom_4", 
+                "bedroom_5", "bedroom_unknown", "bed_count", "senior", "HOMEcity", 
+                "HOMEcounty", "HOMEstate", "homeless", "sro", "transitional", 
+                "large_household", "veterans", "disabled")
+  )
+  
+  # Apply column classes
+  char_cols <- intersect(col_classes$character, names(updates))
+  num_cols <- intersect(col_classes$numeric, names(updates))
+  updates[, (char_cols) := lapply(.SD, as.character), .SDcols = char_cols]
+  updates[, (num_cols) := lapply(.SD, as.numeric), .SDcols = num_cols]
+  
+  # Identify shared fields between updates and IRHD_clean
+  shared_fields <- intersect(names(updates), names(IRHD_clean))
+  
+  # Exclude duplicates from updates
+  duplicate_keys <- updates[, .N, by = key][N > 1, get(key)]
+  if (length(duplicate_keys) > 0) {
+    updates <- updates[!get(key) %in% duplicate_keys]
+  }
+  
+  # Update IRHD_clean with non-NA values from updates
+  for (field in shared_fields) {
+    IRHD_clean[updates[!is.na(get(field))], 
+               (field) := get(paste0("i.", field)), 
+               on = eval(key)]
+  }
+  
+  return(IRHD_clean)
+}
