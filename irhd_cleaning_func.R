@@ -211,10 +211,10 @@ update_irhd <- function(df1, df2, key) {
   
   # Create new clean IRHD file & wider updates file
   IRHD_clean <- setDT(df1)
-  updates <- setDT(df2) %>%  
+  updates <- setDT(df2) %>% .[!is.na(select)] %>%
     dcast(formula = paste0(key, " ~ variable_class"), value.var = "select")
   
-  # Set column classes correctly
+  # Specify column classes
   col_classes <- list(
     character = c("project_id", "in_service_date", "zip"),
     numeric = c("total_units", "total_restricted_units", 
@@ -227,7 +227,7 @@ update_irhd <- function(df1, df2, key) {
                 "large_household", "veterans", "disabled")
   )
   
-  # Apply datatype conversions
+  # Apply column classes
   char_cols <- intersect(col_classes$character, names(updates))
   num_cols <- intersect(col_classes$numeric, names(updates))
   updates[, (char_cols) := lapply(.SD, as.character), .SDcols = char_cols]
