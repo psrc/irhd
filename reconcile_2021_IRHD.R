@@ -29,11 +29,11 @@ source(script_path)
 vintage_year <- "2021"
 sql <- paste('exec irhd.merge_irhd_properties', vintage_year)
 
-# elmer_connection <- dbConnect(odbc::odbc(),
-#                               driver = "SQL Server",
-#                               server = "AWS-PROD-SQL\\Sockeye",
-#                               database = "Elmer",
-#                               trusted_connection = "yes")
+elmer_connection <- dbConnect(odbc::odbc(),
+                              driver = "SQL Server",
+                              server = "SQLserver",
+                              database = "Elmer",
+                              trusted_connection = "yes")
 
 # functions ---
 # BY COUNTY
