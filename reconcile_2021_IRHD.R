@@ -22,7 +22,7 @@ export_4review_path <- "C:/Users/eclute/GitHub/irhd/Export4review.csv"
 HASCO_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/PSRC_2021_IRHD_Snohomish_minor updates.csv"
 THA_updates_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/PSRC_2021_IRHD_Pierce_THA_minor updates.csv"
 KC_path <- "J:/Projects/IncomeRestrictedHsgDB/2021 vintage/Review Files - Received/King County Income-restricted Housing Database 2021.csv"
-script_path <- "./address_match.R"
+script_path <- "C:/Users/eclute/GitHub/irhd/address_match.R"
 source(script_path)
 
 `%not_in%` <- Negate(`%in%`)
@@ -34,6 +34,11 @@ elmer_connection <- dbConnect(odbc::odbc(),
                               server = "SQLserver",
                               database = "Elmer",
                               trusted_connection = "yes")
+
+table_id <- Id(schema = "stg", table = "irhd")
+sql_bing_maps_key <- Sys.getenv("BING_MAPS_KEY")
+sql_import <- paste('irhd.properties')
+sql_export <- paste0('exec irhd.merge_irhd_properties ', vintage_year, ",'", sql_bing_maps_key, "'")
 
 # functions ---
 # BY COUNTY
@@ -580,7 +585,53 @@ new_IRHD_county_ami <- summary_county_ami(new_IRHD)
 new_IRHD_county <- summary_county(new_IRHD)
 
 ## 13) Export to Elmer IRHD_clean -------------------------
+export_version <- IRHD_clean
+export_version <- export_version %>%
+  rename(working_id = UniqueID,
+         data_source = DataSource,
+         general_notes = GeneralNotes,
+         project_id = ProjectID,
+         project_name = ProjectName,
+         property_id = PropertyID,
+         property_name = PropertyName,
+         property_owner = Owner,
+         in_service_date = InServiceDate,
+         expiration_date = ExpirationDate,
+         reported_address = Address, 
+         total_units = TotalUnits,
+         total_restricted_units = TotalRestrictedUnits,
+         ami_20 = AMI20,
+         ami_25 = AMI25,
+         ami_30 = AMI30,
+         ami_35 = AMI35,
+         ami_40 = AMI40,
+         ami_45 = AMI45,
+         ami_50 = AMI50,
+         ami_60 = AMI60,
+         ami_65 = AMI65,
+         ami_70 = AMI70,
+         ami_75 = AMI75,
+         ami_80 = AMI80,
+         ami_85 = AMI85,
+         ami_90 = AMI90,
+         ami_100 = AMI100,
+         ami_120 = AMI120,
+         market_rate = MarketRate,
+         manager_unit = ManagerUnit,
+         units_preserved = UnitsPreserved,
+         bed_count = BedCount,
+         accessible_units = `Accessible Units`,
+         large_household = LargeHousehold4plus,
+         mixed_use = MixedUse,
+         public_housing = `Public Housing`,
+         funding_sources = FundingSources,
+         section_8 = Section8,
+         fed_income_subsidized = `Fed income subsidized`,
+         units_with_rental_subsidy = `# Units with Rental Subsidy`,
+         rental_subsidy_source = `Rental Subsidy Source`
+  )
+
 table_id <- Id(schema = "stg", table = "irhd")
-dbWriteTable(conn = elmer_connection, name = table_id, value = IRHD_clean, overwrite = TRUE)
-dbExecute(conn=elmer_connection, statement=sql)
+dbWriteTable(conn = elmer_connection, name = table_id, value = export_version, overwrite = TRUE)
+dbExecute(conn=elmer_connection, statement=sql_export)
 dbDisconnect(elmer_connection)
