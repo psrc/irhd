@@ -61,9 +61,9 @@ source(updates_received_script) #cleaned data from providers
 
 ## b) Final tweaks to incoming data
 IRHD_raw <- IRHD_raw %>% filter(data_year == last_vintage)
-IRHD <- IRHD_raw %>% filter(!(county == "King")) # King county handled separately
-IRHD %<>% select(-c(created_at,updated_at,shape,irhd_property_id)) # Remove unneeded fields
-IRHD %<>% mutate(full_address = str_replace(full_address, ",\\s*(?=\\d{5}$)", " ")) # Remove extra comma before zip code
+IRHD <- IRHD_raw %>% filter(!(county == "King")) %>% # King county handled separately
+                     select(-c(created_at,updated_at,shape,irhd_property_id)) %>% # Remove unneeded fields
+                     mutate(full_address = str_replace(full_address, ",\\s*(?=\\d{5}$)", " ")) # Remove extra comma before zip code
 
 # Clean KC data - Identify & carry over assigned working_ids from prior vintage
 ## This step may be clarified in future if KC decides to create a key field to help with matching/tracking changes over time
@@ -296,8 +296,8 @@ IRHD_clean <- create_workingid(IRHD_clean)
 
 ## STEP 5: Incorporate any changes from data providers -------------------------
 # a) Add new properties, remove out-of-service, update records as needed
-new <- updates_received %>% filter(Reviewer_Comments == "New Property") %>% select(-Reviewer_Comments)
-remove <- updates_received %>% filter(Reviewer_Comments == "remove") %>% select(-Reviewer_Comments)
+new <- updates_received %>% filter(`Reviewer Comments` == "New Property") %>% select(-`Reviewer Comments`)
+remove <- updates_received %>% filter(`Reviewer Comments` == "remove") %>% select(-`Reviewer Comments`)
 
 IRHD_clean <- rbind(IRHD_clean, new, fill = TRUE)
 IRHD_clean <- anti_join(IRHD_clean, remove, by=c("working_id" = "working_id"))

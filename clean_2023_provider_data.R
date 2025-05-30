@@ -22,15 +22,16 @@ bha <- read_excel(bha_raw, sheet = 3)
 
 # Clean data
 bha %<>% mutate(in_service_date = na_if(in_service_date, "Not Applicable")) %>%
-         filter(`Reviewer Comments (Property is new, out of service, notes, etc)` != 'New Property' | reported_address != '4860 Driftwood Street') %>% # Removed, appears to be a duplicate of existing WSHFC record
-         filter(`Reviewer Comments (Property is new, out of service, notes, etc)` != 'New Property' | reported_address != '265 Oyster Bay Ave') # Removed, appears to be a duplicate of existing WSHFC record
+         filter(`Reviewer Comments` != 'New Property' | reported_address != '4860 Driftwood Street') %>% # Removed, appears to be a duplicate of existing WSHFC record
+         filter(`Reviewer Comments` != 'New Property' | reported_address != '265 Oyster Bay Ave') # Removed, appears to be a duplicate of existing WSHFC record
 
 # Combine
 updates_received <- bind_rows(bha)#,hasco)
+updates_received %<>% mutate(full_address = str_replace(full_address, ",\\s*(?=\\d{5}$)", " ")) # Remove extra comma before zip code
 
 #Search and remove properties in the wrong vintage year
 incorrect_inservicedate <- updates_received %>% filter(updates_received$in_service_date > vintage_year)
 updates_received %<>% filter(updates_received$in_service_date <= vintage_year | is.na(updates_received$in_service_date))
 
 # Clean script
-rm(bha, incorrect_inservicedate,bha_raw,vintage_year,hasco_raw,hasco,)
+rm(bha, incorrect_inservicedate,bha_raw,vintage_year,hasco_raw,hasco)
