@@ -351,8 +351,7 @@ new_IRHD_county_bedrooms <- summary_county_bedrooms(new_IRHD)
 new_IRHD_county_ami <- summary_county_ami(new_IRHD)
 new_IRHD_county <- summary_county(new_IRHD)
 
-## STEP 6: Final clean up and push to Elmer -------------------------
-## a) Export to Elmer IRHD_clean
+## d) Export to Elmer IRHD_clean
 # dbWriteTable(conn = elmer_connection, name = table_id, value = IRHD_clean, overwrite = TRUE)
 # dbExecute(conn=elmer_connection, statement=sql_export)
 # dbDisconnect(elmer_connection)

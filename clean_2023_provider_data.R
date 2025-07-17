@@ -14,20 +14,32 @@ vintage_year <- 2023
 
 setwd("C:/Users/eclute/GitHub/irhd")
 bha_raw <- "J:/Projects/IncomeRestrictedHsgDB/2023 vintage/Review Files Recieved/IRHD_review_kitsap_bremertonhousingauthority.xlsx"
-#hasco_raw <- "J:/Projects/IncomeRestrictedHsgDB/2023 vintage/Review Files Recieved/final_review_SNOHOMISH_hasco.xlsx"
+hasco_raw <- "J:/Projects/IncomeRestrictedHsgDB/2023 vintage/Review Files Recieved/IRHD_review_snohomish.xlsx"
 
 # Pull in data
 bha <- read_excel(bha_raw, sheet = 3)
-#hasco <- read_excel(hasco_raw, sheet = 3)
+hasco <- read_excel(hasco_raw, sheet = 3)
 
 # Clean data
 bha %<>% mutate(in_service_date = na_if(in_service_date, "Not Applicable")) %>%
          filter(`Reviewer Comments` != 'New Property' | reported_address != '4860 Driftwood Street') %>% # Removed, appears to be a duplicate of existing WSHFC record
          filter(`Reviewer Comments` != 'New Property' | reported_address != '265 Oyster Bay Ave') # Removed, appears to be a duplicate of existing WSHFC record
 
+hasco$homeless <- as.character(hasco$homeless)
+hasco %<>% select(-c(dup_key, general_notes))
+
 # Combine
-updates_received <- bind_rows(bha)#,hasco)
-updates_received %<>% mutate(full_address = str_replace(full_address, ",\\s*(?=\\d{5}$)", " ")) # Remove extra comma before zip code
+# updates_received <- bind_rows(bha,hasco)
+# updates_received %<>% mutate(full_address = str_replace(full_address, ",\\s*(?=\\d{5}$)", " ")) # Remove extra comma before zip code
+
+
+
+
+# Not working quite yet. Column names are not matching. Where is irhd_property_id in hasco data? Can we just drop this?
+
+
+
+
 
 #Search and remove properties in the wrong vintage year
 incorrect_inservicedate <- updates_received %>% filter(updates_received$in_service_date > vintage_year)
