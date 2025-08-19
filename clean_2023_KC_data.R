@@ -1,7 +1,7 @@
 # TITLE: Clean 2023 King County data for inclusion in IRHD
 # GEOGRAPHIES: King
 # DATA SOURCE: King County
-# DATE MODIFIED: 08.17.2025
+# DATE CREATED: 08.17.2025
 # AUTHOR: Eric Clute
 
 ## assumptions -------------------------
@@ -44,6 +44,7 @@ KC <- KC_raw %>%
         "ami_85" = "AMI85",
         "ami_90" = "AMI90",
         "ami_100" = "AMI100",
+        "ami_110" = "AMI110",
         "ami_120" = "AMI120",
         "market_rate" = "MarketRate",
         "manager_unit" = "ManagerUnit",

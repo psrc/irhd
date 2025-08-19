@@ -6,7 +6,7 @@
 
 ## INSTRUCTIONS
 ## STEP 1: Set Assumptions, connect to Elmer
-## STEP 2: Clean new data received from WSHFC (Washington State Housing Finance Commission)
+## STEP 2: Load current IRHD and new data from providers (WSHFC, KC, & Others)
 ## STEP 3: Identify changes to WSHFC data compared to last vintage of IRHD (select which datapoints to go with)
 ## STEP 4: Send prelim IRHD to data providers for review
 ## STEP 5: Incorporate any changes from data providers
@@ -25,14 +25,13 @@ library(odbc)
 library(DBI)
 library(openxlsx)
 
-setwd("C:/Users/eclute/GitHub/irhd")
 review_after_join_housingauthorities <- "./Export4review-housingauthorities.csv" # Export for review after WSHFC-IRHD join. Help understanding why property data are changing, reach out to housing authorities or WSHFC
 review_after_join_wshfc <- "./Export4review-wshfc.csv" # Export for review after WSHFC-IRHD join. Why property data are missing from new WSHFC data but included in IRHD
 final_review_housingauthorities <- "./final_review_housingauthorities.xlsx" # Export final dataset for review by housing authorities
 
 irhd_func <- "./irhd_cleaning_func.R"
 wshfc_clean_script <- "./clean_2023_WSHFC_data.R"
-#kc_clean_script <- "./clean_2023_KC_data.R"
+kc_clean_script <- "./clean_2023_KC_data.R"
 updates_received_script <- "./clean_2023_provider_data.R"
 
 source(irhd_func)
@@ -52,47 +51,19 @@ sql_bing_maps_key <- Sys.getenv("BING_MAPS_KEY")
 sql_import <- paste('irhd.properties')
 sql_export <- paste0('exec irhd.merge_irhd_properties ', vintage_year, ",'", sql_bing_maps_key, "'")
 
-## STEP 2: Clean new data received from WSHFC (Washington State Housing Finance Commission) -------------------------
+## STEP 2: Load current IRHD and new data from providers (WSHFC, KC, & Others) -------------------------
 ## a) load data
 IRHD_raw <- dbReadTable(elmer_connection, SQL(sql_import)) # import last vintage of IRHD from Elmer
+            
 source(wshfc_clean_script) # cleaned WSHFC data
-#source(kc_clean_script) # cleaned KC data
+source(kc_clean_script) # cleaned KC data
 source(updates_received_script) #cleaned data from providers
 
 ## b) Final tweaks to incoming data
-IRHD_raw <- IRHD_raw %>% filter(data_year == last_vintage)
-IRHD <- IRHD_raw %>% filter(!(county == "King")) %>% # King county handled separately
+IRHD <- IRHD_raw %>% filter(data_year == last_vintage) %>%
+                     filter(!(county == "King")) %>% # King county handled separately
                      select(-c(created_at,updated_at,shape,irhd_property_id)) %>% # Remove unneeded fields
-                     mutate(full_address = str_replace(full_address, ",\\s*(?=\\d{5}$)", " ")) # Remove extra comma before zip code
-
-# Clean KC data - Identify & carry over assigned working_ids from prior vintage
-## This step may be clarified in future if KC decides to create a key field to help with matching/tracking changes over time
-
-# IRHD_raw_kc <- IRHD_raw %>% filter(county == "King") %>%
-#                             filter(working_id != "SH_7289") %>% # Removed duplicate from prior vintage (La Madera Apartment Homes)
-#                             filter(working_id != "SH_7290") %>% # Removed duplicate from prior vintage (Larc @ Burien)
-#                             filter(working_id != "SH_7293") %>% # Removed duplicate from prior vintage (Panorama Apartments)
-#                             filter(working_id != "SH_7281") %>% # Removed duplicate from prior vintage (Crossroads Senior Living)
-#                             mutate(kc_match = paste(project_name, property_name, total_units, zip, sep = " - "))
-# 
-# kc_cleaned_with_wid <- KC_cleaned %>% filter(!is.na(working_id))
-# kc_cleaned_no_wid <- KC_cleaned %>% filter(is.na(working_id)) %>%
-#                                     mutate(kc_match = paste(project_name, property_name, total_units, zip, sep = " - "))
-# 
-# # Join, matching on newly created kc_match
-# kc_cleaned_no_wid <- left_join(kc_cleaned_no_wid,
-#                                select(IRHD_raw_kc, kc_match, working_id),
-#                                by = "kc_match")
-# 
-# kc_cleaned_no_wid <- kc_cleaned_no_wid %>%
-#   select(-c(working_id.x, kc_match)) %>%  # Remove the column "working_id.x"
-#   rename(working_id = working_id.y)  # Rename "working_id.y" to "working_id"
-# 
-# # Append kc_cleaned_no_wid to kc_cleaned_with_wid to create an updated KC_cleaned df
-# KC_cleaned <- kc_cleaned_with_wid %>%
-#   bind_rows(kc_cleaned_no_wid)
-# 
-# rm(IRHD_raw_kc,kc_cleaned_no_wid,kc_cleaned_with_wid)
+                     mutate(full_address = str_replace(full_address, ",\\s*(?=\\d{5}$)", " ")) # Remove extra commas
 
 ## STEP 3: Identify changes to WSHFC data compared to last vintage of IRHD (select which datapoint to go with) -------------------------
 ## a) Locate records in WSHFC not in IRHD (likely new records/properties)
@@ -101,8 +72,8 @@ new_wshfc <- anti_join(WSHFC_cleaned, IRHD, by = "property_id")
 
 ## b) Locate records in IRHD not in WSHFC_cleaned (No longer in WSHFC data. Similar to last vintage. 2022 Nona @ WSHFC confirmed these were filtered out by "site type". Assisted living, DV, group home, manufactured housing)
 
-no_match_irhd <- anti_join(IRHD, WSHFC_cleaned, by = "property_id")
-no_match_irhd <- no_match_irhd %>% drop_na(property_id)
+no_match_irhd <- anti_join(IRHD, WSHFC_cleaned, by = "property_id") %>%
+                 drop_na(property_id)
 write.csv(no_match_irhd, review_after_join_wshfc, row.names=FALSE)
 
 ## c) Identify changes - IRHD and WSHFC_cleaned. Create long-form for easy comparison
@@ -168,12 +139,12 @@ subset4 <- merge(subset4, subset4_sum, by = "property_id")
 rm(subset4_sum)
 
 # Rows with "diff" of 12% or less will be selected - we want the WSHFC data
-subset4$select <- ifelse(subset4$diff <= "0.12", subset4$variable_value.y, "")
+subset4$select <- ifelse(subset4$diff <= "0.125", subset4$variable_value.y, "")
 
 # Rows where the sum.y is 0, we keep the sum.x data (if WSHFC data is 0, we keep IRHD data)
 subset4$select <- ifelse(subset4$sum.y == "0", subset4$variable_value.x, subset4$select)
 
-# Remove "diff" of greater than 12% from subset4
+# Remove "diff" of greater than 12.5% from subset4
 subset4 <- subset4 %>% subset(!(select == ""),
                               select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select, sum.x, sum.y, diff))
 rectify <- anti_join(rectify, subset4, by=c("ID"="ID")) # remove from rectify
@@ -335,6 +306,13 @@ dups <- IRHD_clean %>%
   mutate(n = n()) %>%
   filter(n > 1)
 dups <- filter(dups, !is.na(working_id))
+
+dups <- IRHD_clean %>%
+  unique() %>%
+  group_by(`kc_id`) %>%
+  mutate(n = n()) %>%
+  filter(n > 1)
+dups <- filter(dups, !is.na(kc_id))
 
 # clean up environment
 rm(updates_received, no_match_irhd, KC_cleaned, dups, updates, new_wshfc, IRHD_raw, IRHD, WSHFC_cleaned, rectify, new, remove)

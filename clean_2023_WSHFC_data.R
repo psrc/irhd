@@ -15,7 +15,7 @@ library(data.table)
 
 setwd("C:/Users/eclute/GitHub/irhd")
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2023 vintage/Data/"
-WSHFC_raw <- read_xlsx(paste0(WSHFC_path, "PSRC report_2023.xlsx"))
+WSHFC_raw <- read_xlsx(paste0(WSHFC_path, "WSHFC_PSRC report_2023.xlsx"))
 vintage_year_cleaning_script = "2023"
 address_func <- "./address_match.R"
 
