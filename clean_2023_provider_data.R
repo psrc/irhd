@@ -56,4 +56,4 @@ incorrect_inservicedate <- updates_received %>% filter(updates_received$in_servi
 updates_received %<>% filter(updates_received$in_service_date <= vintage_year | is.na(updates_received$in_service_date))
 
 # Clean script
-rm(bha, incorrect_inservicedate,bha_raw,vintage_year,hasco_raw,hasco, cols_bha, cols_hasco, matching_cols, unique_bha, unique_hasco)
+rm(bha, incorrect_inservicedate,bha_raw,hasco_raw,hasco, cols_bha, cols_hasco, matching_cols, unique_bha, unique_hasco)

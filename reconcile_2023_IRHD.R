@@ -323,7 +323,8 @@ IRHD_county_ami <- summary_county_ami(IRHD_clean)
 
 ## c) Explore new units
 new_IRHD <- IRHD_clean %>%
-  filter(IRHD_clean$in_service_date == vintage_year)
+  filter(in_service_date == vintage_year & (is.na(contractnew_flag) | contractnew_flag == 0 | contractnew_flag == ""))
+
 
 new_IRHD_county_bedrooms <- summary_county_bedrooms(new_IRHD)
 new_IRHD_county_ami <- summary_county_ami(new_IRHD)
