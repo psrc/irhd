@@ -46,7 +46,7 @@ summary_county_bedrooms <- function(df){
 summary_county_ami <- function(df){
   IRHD_county_ami <- df %>%
     group_by(county) %>%
-    summarize(`less than 30` = sum(na.omit(ami_20 + ami_25 + ami_30)),`31 to 50` = sum(na.omit(ami_35 + ami_40 + ami_45 +ami_50)),`51 to 80` = sum(na.omit(ami_60 + ami_65 + ami_70 + ami_75 + ami_80)),`81 to 100` = sum(na.omit(ami_85 + ami_90 + ami_100)),`100 plus` = sum(na.omit(ami_120)),`unknown AMI` = sum(na.omit(ami_unknown)))
+    summarize(`less than 30` = sum(na.omit(ami_20 + ami_25 + ami_30)),`31 to 50` = sum(na.omit(ami_35 + ami_40 + ami_45 +ami_50)),`51 to 80` = sum(na.omit(ami_60 + ami_65 + ami_70 + ami_75 + ami_80)),`81 to 100` = sum(na.omit(ami_85 + ami_90 + ami_100)),`100 plus` = sum(na.omit(ami_110 + ami_120)),`unknown AMI` = sum(na.omit(ami_unknown)))
   
   # add total column
   IRHD_county_ami <- IRHD_county_ami %>%
@@ -79,7 +79,7 @@ create_workingid <- function(df) {
 ami_cleanup <- function(df) {
   
   IRHD_clean <- df
-  AMIcols<-as.character(quote(c(ami_20, ami_25, ami_30, ami_35, ami_40, ami_45, ami_50, ami_60, ami_65, ami_70, ami_75, ami_80, ami_85, ami_90, ami_100, ami_120)))[-1]
+  AMIcols<-as.character(quote(c(ami_20, ami_25, ami_30, ami_35, ami_40, ami_45, ami_50, ami_60, ami_65, ami_70, ami_75, ami_80, ami_85, ami_90, ami_100, ami_110, ami_120)))[-1]
   
   IRHD_clean %<>%
     mutate(across(all_of(AMIcols), ~replace_na(.,0) )%>%
@@ -222,7 +222,7 @@ update_irhd <- function(df1, df2, key) {
     numeric = c("total_units", "total_restricted_units", 
                 "ami_20", "ami_25", "ami_30", "ami_35", "ami_40", "ami_45", "ami_50", 
                 "ami_60", "ami_65", "ami_70", "ami_75", "ami_80", "ami_85", "ami_90", 
-                "ami_100", "ami_120", "market_rate", "manager_unit", 
+                "ami_100", "ami_110", "ami_120", "market_rate", "manager_unit", 
                 "bedroom_0", "bedroom_1", "bedroom_2", "bedroom_3", "bedroom_4", 
                 "bedroom_5", "bedroom_unknown", "bed_count", "senior", "HOMEcity", 
                 "HOMEcounty", "HOMEstate", "homeless", "sro", "transitional", 

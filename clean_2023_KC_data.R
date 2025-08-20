@@ -95,25 +95,24 @@ duplicates <- KC_cleaned[!is.na(KC_cleaned$working_id) & KC_cleaned$working_id !
 duplicates <- duplicates[duplicated(duplicates$working_id) | duplicated(duplicates$working_id, fromLast = TRUE), ]
 
 ## Identify properties with expired contracts and those that resigned --------------------------
-ended_contract <- KC_cleaned %>% filter(contractexpired_flag == "1")
-signed_new_contract <- KC_cleaned %>%
-  filter(
-    (duplicated(project_name) | duplicated(project_name, fromLast = TRUE)) &
-      project_name %in% ended_contract$project_name
-  )
+kc_ended_contract <- KC_cleaned %>% filter(contractexpired_flag == "1")
+kc_signed_new_contract <- KC_cleaned %>%
+  filter((duplicated(project_name) | duplicated(project_name, fromLast = TRUE)) &
+          project_name %in% kc_ended_contract$project_name)
 
 # For properties that re-signed, update data
-signed_new_contract %<>%
+kc_signed_new_contract %<>%
   group_by(project_name) %>%
   fill(working_id, .direction = "downup") %>%
-  ungroup()
+  ungroup() %<>%
+  mutate(contractnew_flag = if_else(contractexpired_flag == 0, 1, contractnew_flag))
 
-KC_cleaned <- KC_cleaned %>% # Remove any kc_id that appears in signed_new_contract
-  filter(!(kc_id %in% signed_new_contract$kc_id)) %>% # Add back the replacements where contractexpired_flag == 0
-  bind_rows(signed_new_contract %>%
+KC_cleaned <- KC_cleaned %>% # Remove any kc_id that appears in kc_signed_new_contract
+  filter(!(kc_id %in% kc_signed_new_contract$kc_id)) %>% # Add back the replacements where contractexpired_flag == 0
+  bind_rows(kc_signed_new_contract %>%
             filter(contractexpired_flag == 0) %>%
             mutate(contractnew_flag = 1)
   )
 
 ## Clean up --------------------------
-rm(KC_raw, KC, KC_path, KC_vintage_year, incorrect_inservicedate, duplicates, ended_contract, signed_new_contract)
+rm(KC_raw, KC, KC_path, KC_vintage_year, incorrect_inservicedate, duplicates)
