@@ -1,11 +1,11 @@
 -- Summarizing IRHD Data
 --- As outlined in http://aws-linux/mediawiki/index.php/Income-Restricted_Household_Data
 
-DECLARE @vintage AS VARCHAR(100)='2021'
+DECLARE @vintage AS VARCHAR(100)='2023'
 
 -- Summarize by County
---select *
---from irhd.summarize_by_county(@vintage)
+select *
+from irhd.summarize_by_county(@vintage)
 
 --Summarize by Jurisdiction
 select *
