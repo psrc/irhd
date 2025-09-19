@@ -48,12 +48,30 @@ elmer_connection <- dbConnect(odbc::odbc(),
 
 table_id <- Id(schema = "stg", table = "irhd")
 sql_bing_maps_key <- Sys.getenv("BING_MAPS_KEY")
-sql_import <- paste('irhd.properties')
 sql_export <- paste0('exec irhd.merge_irhd_properties ', vintage_year, ",'", sql_bing_maps_key, "'")
+
+cols_info <- dbGetQuery(
+  elmer_connection,
+  "
+  SELECT COLUMN_NAME, DATA_TYPE
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = 'irhd' AND TABLE_NAME = 'properties'
+  ")
+cols_info <- cols_info %>% filter(DATA_TYPE != "geometry")
+cols_expr <- cols_info %>%
+  mutate(
+    select_expr = ifelse(
+      grepl("nvarchar", DATA_TYPE),
+      paste0("CAST([", COLUMN_NAME, "] AS varchar(255)) AS [", COLUMN_NAME, "]"),
+      paste0("[", COLUMN_NAME, "]")
+    )
+  ) %>%
+  pull(select_expr)
+sql_query <- paste0("SELECT ", paste(cols_expr, collapse = ", "), " FROM irhd.properties")
 
 ## STEP 2: Load current IRHD and new data from providers (WSHFC, KC, & Others) -------------------------
 ## a) load data
-IRHD_raw <- dbReadTable(elmer_connection, SQL(sql_import)) # import last vintage of IRHD from Elmer
+IRHD_raw <- dbGetQuery(elmer_connection, sql_query) # import last vintage of IRHD from Elmer
             
 source(wshfc_clean_script) # cleaned WSHFC data
 source(kc_clean_script) # cleaned KC data
@@ -62,7 +80,7 @@ source(updates_received_script) #cleaned data from providers
 ## b) Final tweaks to incoming data
 IRHD <- IRHD_raw %>% filter(data_year == last_vintage) %>%
                      filter(!(county == "King")) %>% # King county handled separately
-                     select(-c(created_at,updated_at,shape,irhd_property_id)) %>% # Remove unneeded fields
+                     select(-c(created_at,updated_at,irhd_property_id)) %>% # Remove unneeded fields
                      mutate(full_address = str_replace(full_address, ",\\s*(?=\\d{5}$)", " ")) # Remove extra commas
 
 ## STEP 3: Identify changes to WSHFC data compared to last vintage of IRHD (select which datapoint to go with) -------------------------
@@ -315,7 +333,7 @@ dups <- IRHD_clean %>%
 dups <- filter(dups, !is.na(kc_id))
 
 # clean up environment
-rm(updates_received, no_match_irhd, KC_cleaned, dups, updates, new_wshfc, IRHD_raw, IRHD, WSHFC_cleaned, rectify, new, remove)
+rm(updates_received, no_match_irhd, KC_cleaned, dups, updates, new_wshfc, IRHD_raw, IRHD, WSHFC_cleaned, rectify, new, remove, cols_info)
 
 ## b) Summary table by County and AMI/Unit Size
 IRHD_county_bedrooms <- summary_county_bedrooms(IRHD_clean)

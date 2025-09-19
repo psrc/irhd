@@ -3,6 +3,7 @@
 # Summary functions for the IRHD. Summarize by county, by county & bedroom count, and by county & AMI limit
 summary_county <- function(df){
   new_IRHD_county <- df %>%
+    filter(is.na(contractexpired_flag) | contractexpired_flag != 1 | contractexpired_flag == "") %>%
     group_by(county) %>%
     summarize("unit count" = sum(na.omit(total_restricted_units)))
   
@@ -23,6 +24,7 @@ summary_county <- function(df){
 # BY UNIT SIZE
 summary_county_bedrooms <- function(df){
   IRHD_county_bedrooms <- df %>%
+    filter(is.na(contractexpired_flag) | contractexpired_flag != 1 | contractexpired_flag == "") %>%
     group_by(county) %>%
     summarize(`studio and one bedrooms` = sum(na.omit(bedroom_0 + bedroom_1)),`two and three bedrooms` = sum(na.omit(bedroom_2 + bedroom_3)),`four bedrooms and more` = sum(na.omit(bedroom_4 + bedroom_5)),`Unknown Size` = sum(na.omit(bedroom_unknown)))
   
@@ -45,6 +47,7 @@ summary_county_bedrooms <- function(df){
 # BY AMI LIMIT
 summary_county_ami <- function(df){
   IRHD_county_ami <- df %>%
+    filter(is.na(contractexpired_flag) | contractexpired_flag != 1 | contractexpired_flag == "") %>%
     group_by(county) %>%
     summarize(`less than 30` = sum(na.omit(ami_20 + ami_25 + ami_30)),`31 to 50` = sum(na.omit(ami_35 + ami_40 + ami_45 +ami_50)),`51 to 80` = sum(na.omit(ami_60 + ami_65 + ami_70 + ami_75 + ami_80)),`81 to 100` = sum(na.omit(ami_85 + ami_90 + ami_100)),`100 plus` = sum(na.omit(ami_110 + ami_120)),`unknown AMI` = sum(na.omit(ami_unknown)))
   
