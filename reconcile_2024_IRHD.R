@@ -30,14 +30,14 @@ review_after_join_wshfc <- "./Export4review-wshfc.csv" # Export for review after
 final_review_housingauthorities <- "./final_review_housingauthorities.xlsx" # Export final dataset for review by housing authorities
 
 irhd_func <- "./irhd_cleaning_func.R"
-wshfc_clean_script <- "./clean_2023_WSHFC_data.R"
-kc_clean_script <- "./clean_2023_KC_data.R"
-updates_received_script <- "./clean_2023_provider_data.R"
+wshfc_clean_script <- "./clean_2024_WSHFC_data.R"
+kc_clean_script <- "./clean_2024_KC_data.R"
+updates_received_script <- "./clean_2024_provider_data.R"
 
 source(irhd_func)
 
 `%not_in%` <- Negate(`%in%`)
-vintage_year <- 2023
+vintage_year <- 2024
 last_vintage <- vintage_year - 1
 
 elmer_connection <- dbConnect(odbc::odbc(),
@@ -48,21 +48,34 @@ elmer_connection <- dbConnect(odbc::odbc(),
 
 table_id <- Id(schema = "stg", table = "irhd")
 sql_bing_maps_key <- Sys.getenv("BING_MAPS_KEY")
-sql_import <- paste('irhd.properties')
 sql_export <- paste0('exec irhd.merge_irhd_properties ', vintage_year, ",'", sql_bing_maps_key, "'")
+
+cols_info <- dbGetQuery(
+  elmer_connection,
+  "SELECT COLUMN_NAME, DATA_TYPE
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = 'irhd' AND TABLE_NAME = 'properties'")
+cols_info <- cols_info %>% filter(DATA_TYPE != "geometry")
+cols_expr <- cols_info %>%
+  mutate(select_expr = ifelse(grepl("nvarchar", DATA_TYPE),
+      paste0("CAST([", COLUMN_NAME, "] AS varchar(255)) AS [", COLUMN_NAME, "]"),
+      paste0("[", COLUMN_NAME, "]"))) %>%
+pull(select_expr)
+
+sql_query <- paste0("SELECT ", paste(cols_expr, collapse = ", "), " FROM irhd.properties")
 
 ## STEP 2: Load current IRHD and new data from providers (WSHFC, KC, & Others) -------------------------
 ## a) load data
-IRHD_raw <- dbReadTable(elmer_connection, SQL(sql_import)) # import last vintage of IRHD from Elmer
-            
+IRHD_raw <- dbGetQuery(elmer_connection, sql_query) # import all IRHD records from Elmer
+
 source(wshfc_clean_script) # cleaned WSHFC data
-source(kc_clean_script) # cleaned KC data
+#source(kc_clean_script) # cleaned KC data
 source(updates_received_script) #cleaned data from providers
 
 ## b) Final tweaks to incoming data
 IRHD <- IRHD_raw %>% filter(data_year == last_vintage) %>%
                      filter(!(county == "King")) %>% # King county handled separately
-                     select(-c(created_at,updated_at,shape,irhd_property_id)) %>% # Remove unneeded fields
+                     select(-c(created_at,updated_at,irhd_property_id)) %>% # Remove unneeded fields
                      mutate(full_address = str_replace(full_address, ",\\s*(?=\\d{5}$)", " ")) # Remove extra commas
 
 ## STEP 3: Identify changes to WSHFC data compared to last vintage of IRHD (select which datapoint to go with) -------------------------
@@ -104,7 +117,7 @@ rectify <- anti_join(rectify, subset2, by=c("ID"="ID")) # remove from rectify
 updates <- rbind(updates, subset2)
 rm(subset2)
 
-# Subset 3) select addresses that have "multiple" in the field - use IRHD address
+# Subset 3) select addresses that have "multiple" in the WSHFC - use IRHD address
 subset3 <- rectify %>% subset(str_detect(rectify$variable_value.y, str_c("Mu")), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset3$select <- subset3$variable_value.x
 rectify <- anti_join(rectify, subset3, by=c("ID"="ID"))# remove from rectify
@@ -185,7 +198,7 @@ updates <- rbind(updates, subset8)
 rm(subset8)
 
 # Subset 9 selects the existing IRHD data over the new WSHFC data - selected since the new data appears "weird" or I confirmed the data online, etc. Somewhat arbitrary
-subset9 <- rectify %>% subset(str_detect(rectify$property_id, "18015|18016|16100|16101|16402|16002|18092|16002|17394|16408|17832|16445|16964|18086|17951|18181|16269|16794|18320|16707|18422|18379|18436"),
+subset9 <- rectify %>% subset(str_detect(rectify$property_id, "15875|15883|15930|16002|16100|16101|16155|16171|16269|16402|16408|16707|16794|16964|17394|17597|17832|17951|18015|18016|18086|18092|18181|18320|18379|18422|18436"),
                               select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset9$select <- subset9$variable_value.x
 rectify <- anti_join(rectify, subset9, by=c("ID"="ID"))# remove from rectify
@@ -193,7 +206,7 @@ updates <- rbind(updates, subset9)
 rm(subset9)
 
 # Subset 10 selects the new WSHFC data over the existing IRHD data - selected since the new data appears "legit". Pretty darn arbitrary
-subset10 <- rectify %>% subset(str_detect(rectify$property_id, "18210|16044|16774|16725|16158|16905|17438"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
+subset10 <- rectify %>% subset(str_detect(rectify$property_id, "16400"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 subset10$select <- subset10$variable_value.y
 rectify <- anti_join(rectify, subset10, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset10)

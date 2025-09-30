@@ -2,7 +2,7 @@
 # Title: Cleaning 2024 WSHFC data
 # Author: Eric Clute
 # Date created: 2022-11-30
-# Last Updated: 2025-09-18
+# Last Updated: 2025-09-29
 #################################################################################
 
 ## load packages-----------------------------------------------------------------
@@ -15,7 +15,7 @@ library(data.table)
 
 setwd("C:/Users/eclute/GitHub/irhd")
 WSHFC_path <- "J:/Projects/IncomeRestrictedHsgDB/2024 vintage/Data/"
-WSHFC_raw <- read_xlsx(paste0(WSHFC_path, "WSHFC - PSRC_Report_2024 (as of 8-28-25).xlsx"))
+WSHFC_raw <- read_xlsx(paste0(WSHFC_path, "WSHFC - PSRC_Report_2024 (as of 9-24-25).xlsx"))
 vintage_year_cleaning_script = "2024"
 address_func <- "./address_match.R"
 
