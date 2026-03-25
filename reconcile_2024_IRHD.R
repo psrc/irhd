@@ -1,13 +1,13 @@
 # TITLE: Reconcile IRHD and new data
 # GEOGRAPHIES: King, Snohomish, Pierce, Kitsap
 # DATA SOURCE: King County, WSHFC, HASCO, THA, EHA, PCHA, BHA, HK
-# DATE CREATED: 05.01.2025
+# DATE CREATED: 03.23.2026
 # AUTHOR: Eric Clute
 
 ## INSTRUCTIONS
 ## STEP 1: Set Assumptions, connect to Elmer
 ## STEP 2: Load current IRHD and new data from providers (WSHFC, KC, & Others)
-## STEP 3: Identify changes to WSHFC data compared to last vintage of IRHD (select which datapoints to go with)
+## STEP 3: Identify changes to WSHFC/KC data compared to last vintage of IRHD (select which datapoints to go with)
 ## STEP 4: Send prelim IRHD to data providers for review
 ## STEP 5: Incorporate any changes from data providers
 ## STEP 6: Final clean up and push to Elmer
@@ -27,6 +27,7 @@ library(openxlsx)
 
 review_after_join_housingauthorities <- "./Export4review-housingauthorities.csv" # Export for review after WSHFC-IRHD join. Help understanding why property data are changing, reach out to housing authorities or WSHFC
 review_after_join_wshfc <- "./Export4review-wshfc.csv" # Export for review after WSHFC-IRHD join. Why property data are missing from new WSHFC data but included in IRHD
+review_after_join_kc <- "./Export4review-kc.csv" # Export for review after KC-IRHD join. Why property data are missing from new KC data but included in IRHD
 final_review_housingauthorities <- "./final_review_housingauthorities.xlsx" # Export final dataset for review by housing authorities
 
 irhd_func <- "./irhd_cleaning_func.R"
@@ -69,12 +70,11 @@ sql_query <- paste0("SELECT ", paste(cols_expr, collapse = ", "), " FROM irhd.pr
 IRHD_raw <- dbGetQuery(elmer_connection, sql_query) # import all IRHD records from Elmer
 
 source(wshfc_clean_script) # cleaned WSHFC data
-#source(kc_clean_script) # cleaned KC data
+source(kc_clean_script) # cleaned KC data
 source(updates_received_script) #cleaned data from providers
 
 ## b) Final tweaks to incoming data
 IRHD <- IRHD_raw %>% filter(data_year == last_vintage) %>%
-                     filter(!(county == "King")) %>% # King county handled separately
                      select(-c(created_at,updated_at,irhd_property_id)) %>% # Remove unneeded fields
                      mutate(full_address = str_replace(full_address, ",\\s*(?=\\d{5}$)", " ")) # Remove extra commas
 
@@ -85,9 +85,9 @@ new_wshfc <- anti_join(WSHFC_cleaned, IRHD, by = "property_id")
 
 ## b) Locate records in IRHD not in WSHFC_cleaned (No longer in WSHFC data. Similar to last vintage. 2022 Nona @ WSHFC confirmed these were filtered out by "site type". Assisted living, DV, group home, manufactured housing)
 
-no_match_irhd <- anti_join(IRHD, WSHFC_cleaned, by = "property_id") %>%
+no_match_wshfc <- anti_join(IRHD, WSHFC_cleaned, by = "property_id") %>%
                  drop_na(property_id)
-write.csv(no_match_irhd, review_after_join_wshfc, row.names=FALSE)
+write.csv(no_match_wshfc, review_after_join_wshfc, row.names=FALSE)
 
 ## c) Identify changes - IRHD and WSHFC_cleaned. Create long-form for easy comparison
 
@@ -133,10 +133,13 @@ subset4 <- rectify %>% subset((variable_class == "total_units" | variable_class 
                                     variable_class == "ami_60"| variable_class == "ami_65"|
                                     variable_class == "ami_70"| variable_class == "ami_75"|
                                     variable_class == "ami_80"| variable_class == "ami_85"|
-                                    variable_class == "ami_90"| variable_class == "ami_100"| variable_class == "ami_120"|
+                                    variable_class == "ami_90"| variable_class == "ami_100"|
+                                    variable_class == "ami_110"| variable_class == "ami_120"|
                                     variable_class == "market_rate"| variable_class == "manager_unit"|
-                                    variable_class == "bedroom_0"| variable_class == "bedroom_1"| variable_class == "bedroom_2"| variable_class == "bedroom_3"|
-                                    variable_class == "bedroom_4"| variable_class == "bedroom_5"| variable_class == "bedroom_unknown"|
+                                    variable_class == "bedroom_0"| variable_class == "bedroom_1"| 
+                                    variable_class == "bedroom_2"| variable_class == "bedroom_3"|
+                                    variable_class == "bedroom_4"| variable_class == "bedroom_5"| 
+                                    variable_class == "bedroom_unknown"|
                                     variable_class == "bed_count"), select = c(ID, property_id, variable_class,variable_value.x,variable_value.y,match, select))
 
 # Create formula for calculating difference between numeric values
@@ -236,12 +239,33 @@ rectify <- anti_join(rectify, subset14, by=c("ID"="ID"))# remove from rectify
 updates <- rbind(updates, subset14)
 rm(subset14)
 
-## e) Take "updates" data and update IRHD records, join cleaned KC data, create IRHD_clean table
+## e) Take "updates" data and update IRHD records (WSHFC & KC data), create IRHD_clean table
 
 IRHD_clean <- update_irhd(IRHD, updates, 'property_id')
 
-# Add in new properties identified in new_wshfc as well as all cleaned KC data
-IRHD_clean <- rbind(IRHD_clean, new_wshfc, KC_cleaned, fill=TRUE)
+# Match KC data with kc_id, grab all newest data
+rectify <- identify_changes_irhd(IRHD_clean, KC_cleaned, 'kc_id')
+updates <- rectify
+updates$select <- updates$variable_value.y
+IRHD_clean <- update_irhd(IRHD_clean, updates, 'kc_id')
+
+# Locate new records and missing records from KC
+## a) Locate records in KC not in IRHD (likely new records/properties)
+
+new_kc <- anti_join(KC_cleaned, IRHD_clean, by = "kc_id")
+
+## b) Locate records in IRHD not in KC_cleaned (perhaps removed from service?)
+no_match_kc <- anti_join(IRHD_clean, KC_cleaned, by = "kc_id") %>%
+  drop_na(kc_id)
+write.csv(no_match_kc, review_after_join_kc, row.names=FALSE)
+
+# Add in new properties identified in new_wshfc/new_kc
+IRHD_clean <- rbind(IRHD_clean, new_wshfc, new_kc, fill=TRUE)
+
+# Remove records from IRHD_clean that were missing in new WSHFC/KC data 
+IRHD_clean <- IRHD_clean %>%
+  anti_join(no_match_kc, by = "kc_id") %>%
+  anti_join(no_match_wshfc, by = "property_id")
 
 # Clean up before export to housing authorities
 IRHD_clean <- ami_cleanup(IRHD_clean)
@@ -328,7 +352,7 @@ dups <- IRHD_clean %>%
 dups <- filter(dups, !is.na(kc_id))
 
 # clean up environment
-rm(updates_received, no_match_irhd, KC_cleaned, dups, updates, new_wshfc, IRHD_raw, IRHD, WSHFC_cleaned, rectify, new, remove)
+rm(updates_received, no_match_wshfc, KC_cleaned, dups, updates, new_wshfc, IRHD_raw, IRHD, WSHFC_cleaned, rectify, new, remove, kc_ended_contract, kc_signed_new_contract, new_kc, no_match_kc, cols_info)
 
 ## b) Summary table by County and AMI/Unit Size
 IRHD_county_bedrooms <- summary_county_bedrooms(IRHD_clean)
@@ -336,7 +360,7 @@ IRHD_county_ami <- summary_county_ami(IRHD_clean)
 
 ## c) Explore new units
 new_IRHD <- IRHD_clean %>%
-  filter(in_service_date == vintage_year & (is.na(contractnew_flag) | contractnew_flag == 0 | contractnew_flag == ""))
+  filter(in_service_date == vintage_year & (is.na(contractnew) | contractnew == 0 | contractnew == ""))
 
 new_IRHD_county_bedrooms <- summary_county_bedrooms(new_IRHD)
 new_IRHD_county_ami <- summary_county_ami(new_IRHD)

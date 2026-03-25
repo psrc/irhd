@@ -3,7 +3,7 @@
 # Summary functions for the IRHD. Summarize by county, by county & bedroom count, and by county & AMI limit
 summary_county <- function(df){
   new_IRHD_county <- df %>%
-    filter(is.na(contractexpired_flag) | contractexpired_flag != 1 | contractexpired_flag == "") %>%
+    filter(is.na(contractexpired) | contractexpired != 1 | contractexpired == "") %>%
     group_by(county) %>%
     summarize("unit count" = sum(na.omit(total_restricted_units)))
   
@@ -24,7 +24,7 @@ summary_county <- function(df){
 # BY UNIT SIZE
 summary_county_bedrooms <- function(df){
   IRHD_county_bedrooms <- df %>%
-    filter(is.na(contractexpired_flag) | contractexpired_flag != 1 | contractexpired_flag == "") %>%
+    filter(is.na(contractexpired) | contractexpired != 1 | contractexpired == "") %>%
     group_by(county) %>%
     summarize(`studio and one bedrooms` = sum(na.omit(bedroom_0 + bedroom_1)),`two and three bedrooms` = sum(na.omit(bedroom_2 + bedroom_3)),`four bedrooms and more` = sum(na.omit(bedroom_4 + bedroom_5)),`Unknown Size` = sum(na.omit(bedroom_unknown)))
   
@@ -47,9 +47,9 @@ summary_county_bedrooms <- function(df){
 # BY AMI LIMIT
 summary_county_ami <- function(df){
   IRHD_county_ami <- df %>%
-    filter(is.na(contractexpired_flag) | contractexpired_flag != 1 | contractexpired_flag == "") %>%
+    filter(is.na(contractexpired) | contractexpired != 1 | contractexpired == "") %>%
     group_by(county) %>%
-    summarize(`less than 30` = sum(na.omit(ami_20 + ami_25 + ami_30)),`31 to 50` = sum(na.omit(ami_35 + ami_40 + ami_45 +ami_50)),`51 to 80` = sum(na.omit(ami_60 + ami_65 + ami_70 + ami_75 + ami_80)),`81 to 100` = sum(na.omit(ami_85 + ami_90 + ami_100)),`100 plus` = sum(na.omit(ami_110 + ami_120)),`unknown AMI` = sum(na.omit(ami_unknown)))
+    summarize(`0 to 30` = sum(na.omit(ami_20 + ami_25 + ami_30)),`31 to 50` = sum(na.omit(ami_35 + ami_40 + ami_45 +ami_50)),`51 to 80` = sum(na.omit(ami_60 + ami_65 + ami_70 + ami_75 + ami_80)),`81 to 100` = sum(na.omit(ami_85 + ami_90 + ami_100)),`100 plus` = sum(na.omit(ami_110 + ami_120)),`unknown AMI` = sum(na.omit(ami_unknown)))
   
   # add total column
   IRHD_county_ami <- IRHD_county_ami %>%
@@ -114,38 +114,61 @@ datayear_cleanup <- function(df) {
 identify_changes_irhd <- function(df1, df2, key) {
   # Pivot the IRHD data to make it long and thin
   long_IRHD <- df1 %>%
-    pivot_longer(c('project_id',
-                   'project_name',
-                   'property_name',
-                   'property_owner',
-                   'manager',
-                   'in_service_date',
-                   'expiration_date',
-                   'cleaned_address',
-                   'full_address',
-                   'county',
-                   'total_units',
-                   'total_restricted_units',
-                   'ami_20','ami_25','ami_30','ami_35','ami_40','ami_45','ami_50','ami_60','ami_65','ami_70','ami_75','ami_80','ami_85','ami_90','ami_100', 'ami_120',
-                   'market_rate',
-                   'manager_unit',
-                   'bedroom_0','bedroom_1','bedroom_2','bedroom_3','bedroom_4','bedroom_5','bedroom_unknown',
-                   'bed_count',
-                   'site_type',
-                   'HOMEcity',
-                   'HOMEcounty',
-                   'HOMEstate',
-                   'confidentiality',
-                   'policy',
-                   'senior',
-                   'disabled',
-                   'homeless',
-                   'sro',
-                   'large_household',
-                   'transitional',
-                   'veterans',
-                   'funding_sources',
-                   'tenure'),
+    pivot_longer(cols = any_of(c('data_source',
+                                 'project_id',
+                                 #'property_id',
+                                 'project_name',
+                                 'property_name',
+                                 'property_owner',
+                                 'manager',
+                                 'developer',
+                                 'in_service_date',
+                                 'expiration_date',
+                                 'cleaned_address',
+                                 'reported_address',
+                                 'full_address',
+                                 'city',
+                                 'zip',
+                                 'county',
+                                 'total_units',
+                                 'total_restricted_units',
+                                 'ami_20','ami_25','ami_30','ami_35','ami_40','ami_45','ami_50','ami_60','ami_65','ami_70','ami_75','ami_80','ami_85','ami_90','ami_100', 'ami_110', 'ami_120',
+                                 'market_rate',
+                                 'manager_unit',
+                                 'bedroom_0','bedroom_1','bedroom_2','bedroom_3','bedroom_4','bedroom_5','bedroom_unknown',
+                                 'units_preserved',
+                                 'bed_count',
+                                 'site_type',
+                                 'tenure',
+                                 'accessible_units',
+                                 'home',
+                                 'HOMEcity',
+                                 'HOMEcounty',
+                                 'HOMEstate',
+                                 'confidentiality',
+                                 'policy',
+                                 'mixed_use',
+                                 'public_housing',
+                                 'senior',
+                                 'disabled',
+                                 'farmworker',
+                                 'homeless',
+                                 'sro',
+                                 'large_household',
+                                 'transitional',
+                                 'veterans',
+                                 'funding_sources',
+                                 'section_8',
+                                 'tax_credit',
+                                 'fed_income_subsidized',
+                                 'units_with_rental_subsidy',
+                                 #'x_coord', # recalculated each year w/address
+                                 #'y_coord', # recalculated each year w/address
+                                 #'kc_id',
+                                 'GeoCode_Lat',
+                                 'Geocode_Long',
+                                 'contractexpired',
+                                 'contractnew')),
                  names_to='variable_class',
                  values_to='variable_value',
                  values_transform = list(variable_value=as.character))
@@ -156,38 +179,61 @@ identify_changes_irhd <- function(df1, df2, key) {
 
   # Pivot the mocked-up data to make it long and thin
   long_df <- df2 %>%
-    pivot_longer(c('project_id',
-                   'project_name',
-                   'property_name',
-                   'property_owner',
-                   'manager',
-                   'in_service_date',
-                   'expiration_date',
-                   'cleaned_address',
-                   'full_address',
-                   'county',
-                   'total_units',
-                   'total_restricted_units',
-                   'ami_20','ami_25','ami_30','ami_35','ami_40','ami_45','ami_50','ami_60','ami_65','ami_70','ami_75','ami_80','ami_85','ami_90','ami_100', 'ami_120',
-                   'market_rate',
-                   'manager_unit',
-                   'bedroom_0','bedroom_1','bedroom_2','bedroom_3','bedroom_4','bedroom_5','bedroom_unknown',
-                   'bed_count',
-                   'site_type',
-                   'HOMEcity',
-                   'HOMEcounty',
-                   'HOMEstate',
-                   'confidentiality',
-                   'policy',
-                   'senior',
-                   'disabled',
-                   'homeless',
-                   'sro',
-                   'large_household',
-                   'transitional',
-                   'veterans',
-                   'funding_sources',
-                   'tenure'),
+    pivot_longer(cols = any_of(c('data_source',
+                                 'project_id',
+                                 #'property_id' # Cannot match on a key field
+                                 'project_name',
+                                 'property_name',
+                                 'property_owner',
+                                 'manager',
+                                 'developer',
+                                 'in_service_date',
+                                 'expiration_date',
+                                 'cleaned_address',
+                                 'reported_address',
+                                 'full_address',
+                                 'city',
+                                 'zip',
+                                 'county',
+                                 'total_units',
+                                 'total_restricted_units',
+                                 'ami_20','ami_25','ami_30','ami_35','ami_40','ami_45','ami_50','ami_60','ami_65','ami_70','ami_75','ami_80','ami_85','ami_90','ami_100', 'ami_110', 'ami_120',
+                                 'market_rate',
+                                 'manager_unit',
+                                 'bedroom_0','bedroom_1','bedroom_2','bedroom_3','bedroom_4','bedroom_5','bedroom_unknown',
+                                 'units_preserved',
+                                 'bed_count',
+                                 'site_type',
+                                 'tenure',
+                                 'accessible_units',
+                                 'home',
+                                 'HOMEcity',
+                                 'HOMEcounty',
+                                 'HOMEstate',
+                                 'confidentiality',
+                                 'policy',
+                                 'mixed_use',
+                                 'public_housing',
+                                 'senior',
+                                 'disabled',
+                                 'farmworker',
+                                 'homeless',
+                                 'sro',
+                                 'large_household',
+                                 'transitional',
+                                 'veterans',
+                                 'funding_sources',
+                                 'section_8',
+                                 'tax_credit',
+                                 'fed_income_subsidized',
+                                 'units_with_rental_subsidy',
+                                 #'x_coord', # recalculated each year w/address
+                                 #'y_coord', # recalculated each year w/address
+                                 #'kc_id', # Cannot match on a key field
+                                 'GeoCode_Lat',
+                                 'Geocode_Long',
+                                 'contractexpired',
+                                 'contractnew')),
                  names_to='variable_class',
                  values_to='variable_value',
                  values_transform = list(variable_value=as.character))

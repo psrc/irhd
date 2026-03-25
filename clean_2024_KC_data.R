@@ -68,7 +68,7 @@ KC <- KC_raw %>%
         "funding_sources" = "Funder",
 #        "confidentiality" = "Confidentiality",
         "property_owner" = "ProjectSponsor",
-        "contractexpired_flag" = "ExpiredProperty_flag")
+        "contractexpired" = "ExpiredProperty_flag")
 
 class(KC$in_service_date) = "character"
 class(KC$HousingCovenant_A) = "character"
@@ -76,13 +76,13 @@ class(KC$HousingCovenant_B) = "character"
 class(KC$HousingCovenant_C) = "character"
 
 # Create new fields & clean address field
-KC_cleaned <- KC %>%
+KC <- KC %>%
   mutate(
     county = "King",
-    contractnew_flag = 0,
-    working_id = ifelse(str_starts(kc_id, "SH_"), str_sub(kc_id, 1, 7), NA),
-    full_address = str_c(full_address, ', ', city, ', WA ', zip)
-  ) %>%
+    contractnew = 0,
+    full_address = str_c(full_address, ', ', city, ', WA ', zip)) %>%
+  select(-c(`...65`)) %>%
+  
   # Combine all sources/housing covenant data together, separate by ";"
   mutate(across(
     c(FundingSource, HousingCovenant_A, HousingCovenant_B, HousingCovenant_C),
@@ -97,61 +97,51 @@ KC_cleaned <- KC %>%
 
 # -------- This section not working quite yet. Need help combining all Expiration data together
 
-# TEST <- KC_cleaned |>
-#   mutate(across(starts_with("Expiration_"), as.character)) |>
-#   
-#   rowwise() |>
-#   mutate(
-#     expiration_date = {
-#       vals <- c_across(starts_with("Expiration_"))
-#       
-#       # remove NAs and blanks
-#       vals <- vals[!is.na(vals) & vals != ""]
-#       
-#       if(length(vals) == 0) {
-#         NA_character_  # empty row
-#       } else if(any(str_detect(vals, regex("life|indefinite", ignore_case = TRUE)))) {
-#         "Life/Indefinite"
-#       } else {
-#         # extract 4-digit years
-#         years <- as.integer(str_extract(vals, "\\b\\d{4}\\b"))
-#         years <- years[!is.na(years)]
-#         if(length(years) == 0) NA_character_ else as.character(max(years))
-#       }
-#     }
-#   ) |>
-#   ungroup()
+KC <- KC |>
+  mutate(across(contains("Expiration_"), as.character)) |>
+
+  rowwise() |>
+  mutate(
+    expiration_date = {vals <- c_across(contains("Expiration_"))
+      vals <- vals[!is.na(vals) & vals != ""] # remove NAs and blanks
+      if(length(vals) == 0) {
+        NA_character_  # empty row
+      } else if(any(str_detect(vals, regex("life|indefinite", ignore_case = TRUE)))) {
+        "Life/Indefinite"
+      } else {
+        # extract 4-digit years
+        years <- as.integer(str_extract(vals, "\\b\\d{4}\\b"))
+        years <- years[!is.na(years)]
+        if(length(years) == 0) NA_character_ else as.character(max(years))}}) |>
+  ungroup() |>
+  select(-contains("Expiration_"), expiration_date)
 
 # Identify incorrect service year - remove from data
 incorrect_inservicedate <- KC %>% filter(KC$in_service_date > KC_vintage_year)
 KC %<>% filter(KC$in_service_date <= KC_vintage_year | is.na(KC$in_service_date))
 
 # Identify duplicate working_id or kc_id value
-duplicates <- KC_cleaned[!is.na(KC_cleaned$kc_id) & KC_cleaned$kc_id != "", ]
+duplicates <- KC[!is.na(KC$kc_id) & KC$kc_id != "", ]
 duplicates <- duplicates[duplicated(duplicates$kc_id) | duplicated(duplicates$kc_id, fromLast = TRUE), ]
 
-duplicates <- KC_cleaned[!is.na(KC_cleaned$working_id) & KC_cleaned$working_id != "", ]
-duplicates <- duplicates[duplicated(duplicates$working_id) | duplicated(duplicates$working_id, fromLast = TRUE), ]
-
 ## Identify properties with expired contracts and those that resigned --------------------------
-kc_ended_contract <- KC_cleaned %>% filter(contractexpired_flag == "1")
-kc_signed_new_contract <- KC_cleaned %>%
+kc_ended_contract <- KC %>% filter(contractexpired == "1")
+kc_signed_new_contract <- KC %>%
   filter((duplicated(project_name) | duplicated(project_name, fromLast = TRUE)) &
           project_name %in% kc_ended_contract$project_name)
 
 # For properties that re-signed, update data
-kc_signed_new_contract %<>%
+kc_signed_new_contract <- kc_signed_new_contract %>%
   group_by(project_name) %>%
-  fill(working_id, .direction = "downup") %>%
-  ungroup() %<>%
-  mutate(contractnew_flag = if_else(contractexpired_flag == 0, 1, contractnew_flag))
+  fill(kc_id, .direction = "downup") %>%
+  ungroup() %>%
+  mutate(contractnew = if_else(contractexpired == 0, 1, contractnew))
 
-KC_cleaned <- KC_cleaned %>% # Remove any kc_id that appears in kc_signed_new_contract
-  filter(!(kc_id %in% kc_signed_new_contract$kc_id)) %>% # Add back the replacements where contractexpired_flag == 0
+KC_cleaned <- KC %>% # Remove any kc_id that appears in kc_signed_new_contract
+  filter(!(kc_id %in% kc_signed_new_contract$kc_id)) %>% # Add back the replacements where contractexpired == 0
   bind_rows(kc_signed_new_contract %>%
-            filter(contractexpired_flag == 0) %>%
-            mutate(contractnew_flag = 1)
-  )
+            filter(contractexpired == 0) %>%
+            mutate(contractnew = 1))
 
 ## Clean up --------------------------
 rm(KC_raw, KC, KC_path, KC_vintage_year, incorrect_inservicedate, duplicates)
