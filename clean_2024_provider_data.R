@@ -28,9 +28,10 @@ hasco <- read_excel(hasco_raw, sheet = 3)
 bha %<>% mutate(in_service_date = na_if(in_service_date, "Not Applicable")) %>%
          filter(`Reviewer Comments` != 'New Property' | reported_address != '4860 Driftwood Street') %>% # Removed, appears to be a duplicate of existing WSHFC record
          filter(`Reviewer Comments` != 'New Property' | reported_address != '265 Oyster Bay Ave') # Removed, appears to be a duplicate of existing WSHFC record
+bha$homeless <- as.numeric(bha$homeless)
 
 # HASCO data
-hasco$homeless <- as.character(hasco$homeless)
+hasco$homeless <- as.numeric(hasco$homeless)
 #hasco %<>% select(-c(dup_key, general_notes, farmworker))
 
 ## Join together ----------------------
