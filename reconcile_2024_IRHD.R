@@ -48,8 +48,8 @@ elmer_connection <- dbConnect(odbc::odbc(),
                               trusted_connection = "yes")
 
 table_id <- Id(schema = "stg", table = "irhd")
-sql_bing_maps_key <- Sys.getenv("BING_MAPS_KEY")
-sql_export <- paste0('exec irhd.merge_irhd_properties ', vintage_year, ",'", sql_bing_maps_key, "'")
+sql_google_maps_key <- Sys.getenv("GOOGLE_MAPS_KEY")
+sql_export <- paste0('exec irhd.merge_irhd_properties ', vintage_year, ",'", sql_google_maps_key, "'")
 
 cols_info <- dbGetQuery(
   elmer_connection,
@@ -248,6 +248,11 @@ rectify <- identify_changes_irhd(IRHD_clean, KC_cleaned, 'kc_id')
 updates <- rectify
 updates$select <- updates$variable_value.y
 IRHD_clean <- update_irhd(IRHD_clean, updates, 'kc_id')
+
+# Join IRHD_clean to KC_cleaned - grabbing the Lat/Long points provided by KC. Will be converted to X/Y
+IRHD_clean <- left_join(IRHD_clean,KC_cleaned %>% 
+    dplyr::select(kc_id, GeoCode_Lat, GeoCode_Long),
+  by = "kc_id")
 
 # Locate new records and missing records from KC
 ## a) Locate records in KC not in IRHD (likely new records/properties)
