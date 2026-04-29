@@ -272,6 +272,7 @@ IRHD_clean <- ami_cleanup(IRHD_clean)
 IRHD_clean <- unitsize_cleanup(IRHD_clean)
 IRHD_clean <- datayear_cleanup(IRHD_clean)
 IRHD_clean <- create_workingid(IRHD_clean)
+IRHD_clean <- clean_undisclosed(IRHD_clean)
 
 ## STEP 4: Send prelim IRHD to data providers for review  -------------------------
 ## a) Export for review by housing authorities, ask for new properties, remove out-of-service properties, etc
@@ -328,6 +329,7 @@ IRHD_clean <- ami_cleanup(IRHD_clean)
 IRHD_clean <- unitsize_cleanup(IRHD_clean)
 IRHD_clean <- datayear_cleanup(IRHD_clean)
 IRHD_clean <- create_workingid(IRHD_clean)
+IRHD_clean <- clean_undisclosed(IRHD_clean)
 
 # check for any duplicates - hopefully 0!
 dups <- IRHD_clean %>%

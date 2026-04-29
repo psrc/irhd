@@ -21,7 +21,7 @@ KC_raw <- read_csv(paste0(KC_path, "King_County_Income_Restricted_Housing_Databa
 ## Data cleaning ------------------------
 
 # Adjust field names to match IRHD
-KC <- KC_raw %>%
+KC <- KC_raw |>
  rename("kc_id" = "uniqueID_final",
         "data_source" = "DataSourceName",
         "project_name" = "ProjectName",
@@ -68,7 +68,8 @@ KC <- KC_raw %>%
         "funding_sources" = "Funder",
 #        "confidentiality" = "Confidentiality",
         "property_owner" = "ProjectSponsor",
-        "contractexpired" = "ExpiredProperty_flag")
+        "contractexpired" = "ExpiredProperty_flag") |>
+  select(-c(`Zip Code`, `...65`))
 
 class(KC$in_service_date) = "character"
 class(KC$HousingCovenant_A) = "character"
@@ -81,7 +82,6 @@ KC <- KC %>%
     county = "King",
     contractnew = 0,
     full_address = str_c(full_address, ', ', city, ', WA ', zip)) %>%
-  select(-c(`...65`)) %>%
   
   # Combine all sources/housing covenant data together, separate by ";"
   mutate(across(
@@ -95,7 +95,7 @@ KC <- KC %>%
   select(-c(City, ProjectType)) %>%
   add_cleaned_addresses()
 
-# -------- This section not working quite yet. Need help combining all Expiration data together
+# -------- Combine expiration date data together
 
 KC <- KC |>
   mutate(across(contains("Expiration_"), as.character)) |>

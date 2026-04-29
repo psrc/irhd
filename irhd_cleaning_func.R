@@ -255,50 +255,102 @@ identify_changes_irhd <- function(df1, df2, key) {
 
 # CREATE FUNCTION: UPDATE IRHD WITH SELECTED CHANGES (df1 = "IRHD" df, df2 = "updates" df. key = matching field)
 update_irhd <- function(df1, df2, key) {
-  # Check inputs
-  if (!key %in% colnames(df1) | !key %in% colnames(df2)) {
-    stop(paste("Key column", key, "must exist in both input tables"))
+  
+  # Safety checks
+  required_cols <- c(key, "variable_class", "select")
+  
+  if (!all(required_cols %in% names(df2))) {
+    stop("df2 must contain: ", paste(required_cols, collapse = ", "))
   }
   
-  # Create new clean IRHD file & wider updates file
-  IRHD_clean <- setDT(df1)
-  updates <- setDT(df2) %>% .[!is.na(select)] %>%
-    dcast(formula = paste0(key, " ~ variable_class"), value.var = "select")
+  # Create clean copy
+  IRHD_clean <- data.table::as.data.table(copy(df1))
+  updates <- data.table::as.data.table(copy(df2))
   
-  # Specify column classes
-  col_classes <- list(
-    character = c("project_id", "in_service_date", "zip"),
-    numeric = c("total_units", "total_restricted_units", 
-                "ami_20", "ami_25", "ami_30", "ami_35", "ami_40", "ami_45", "ami_50", 
-                "ami_60", "ami_65", "ami_70", "ami_75", "ami_80", "ami_85", "ami_90", 
-                "ami_100", "ami_110", "ami_120", "market_rate", "manager_unit", 
-                "bedroom_0", "bedroom_1", "bedroom_2", "bedroom_3", "bedroom_4", 
-                "bedroom_5", "bedroom_unknown", "bed_count", "senior", "HOMEcity", 
-                "HOMEcounty", "HOMEstate", "homeless", "sro", "transitional", 
-                "large_household", "veterans", "disabled")
-  )
+  # Remove rows with missing variable_class
+  updates <- updates[!is.na(variable_class)]
   
-  # Apply column classes
-  char_cols <- intersect(col_classes$character, names(updates))
-  num_cols <- intersect(col_classes$numeric, names(updates))
-  updates[, (char_cols) := lapply(.SD, as.character), .SDcols = char_cols]
-  updates[, (num_cols) := lapply(.SD, as.numeric), .SDcols = num_cols]
-  
-  # Identify shared fields between updates and IRHD_clean
-  shared_fields <- intersect(names(updates), names(IRHD_clean))
-  
-  # Exclude duplicates from updates
-  duplicate_keys <- updates[, .N, by = key][N > 1, get(key)]
-  if (length(duplicate_keys) > 0) {
-    updates <- updates[!get(key) %in% duplicate_keys]
-  }
-  
-  # Update IRHD_clean with non-NA values from updates
-  for (field in shared_fields) {
-    IRHD_clean[updates[!is.na(get(field))], 
-               (field) := get(paste0("i.", field)), 
-               on = eval(key)]
+  # Apply updates row-by-row
+  # Apply updates row-by-row
+  for (i in seq_len(nrow(updates))) {
+    
+    field  <- updates$variable_class[i]
+    value  <- updates$select[i]
+    keyval <- updates[[key]][i]
+    
+    # Skip fields not found in IRHD_clean
+    if (!field %in% names(IRHD_clean)) {
+      warning(paste("Skipping unknown field:", field))
+      next
+    }
+    
+    # Match destination column type
+    target_class <- class(IRHD_clean[[field]])[1]
+    
+    if (target_class %in% c("numeric", "double")) {
+      value <- suppressWarnings(as.numeric(value))
+    }
+    
+    if (target_class %in% c("integer")) {
+      value <- suppressWarnings(as.integer(value))
+    }
+    
+    if (target_class %in% c("character")) {
+      value <- as.character(value)
+    }
+    
+    # Apply update
+    IRHD_clean[
+      get(key) == keyval,
+      (field) := value
+    ]
   }
   
   return(IRHD_clean)
+}
+
+# CLEANING FUNCTION: Removes location/name info for any record marked Undisclosed or Confidential
+
+clean_undisclosed <- function(df) {
+  
+  cols_to_na <- c(
+    "property_name",
+    "project_name",
+    "reported_address",
+    "manager",
+    "x_coord",
+    "y_coord",
+    "full_address",
+    "cleaned_address",
+    "GeoCode_Lat",
+    "GeoCode_Long"
+  )
+  
+  df %>%
+    dplyr::mutate(
+      
+      # Identify records needing cleaning
+      undisclosed_flag =
+        grepl(
+          "undisclosed|confidential",
+          paste(property_name, project_name, reported_address),
+          ignore.case = TRUE
+        ) |
+        (!is.na(confidentiality) & trimws(confidentiality) != ""),
+      
+      # Clean sensitive fields
+      dplyr::across(
+        dplyr::all_of(cols_to_na),
+        ~ ifelse(undisclosed_flag, NA, .)
+      ),
+      
+      # Ensure confidentiality is populated if flagged
+      confidentiality = dplyr::if_else(
+        undisclosed_flag & (is.na(confidentiality) | trimws(confidentiality) == ""),
+        "Confidential",
+        confidentiality
+      )
+    ) %>%
+    
+    dplyr::select(-undisclosed_flag)
 }
