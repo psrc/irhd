@@ -96,7 +96,7 @@ WSHFC_cleaned <- WSHFC_raw %>%
 #create grouped funder column
 WSHFC_cleaned %<>%
   group_by(`Site Name`, `Address`) %>%
-  mutate(Funder = paste(sort(unique(Funder)), collapse = ","))
+  mutate(Funder = paste(sort(unique(Funder)), collapse = ", "))
 
 # ------- DATA FILTER #2 ------- select entry with the largest total restricted unit count
 WSHFC_cleaned <- WSHFC_cleaned %>%
