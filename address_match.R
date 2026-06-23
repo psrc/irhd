@@ -35,7 +35,8 @@ add_cleaned_addresses <- function(in.df) {
 
     df_min <- pm_streetDir_parse(df_min, dictionary=dirs)
     df_min <- pm_streetSuf_parse(df_min)
-    df_min <- pm_street_parse(df_min)
+    df_min <- df_min |> filter(!is.na(pm.address))  # drop unparseable addresses before street parse
+    df_min$pm.street <- df_min$pm.address           # bypass pm_street_parse (incompatible with R 4.6.0)
     df_parsed <- pm_replace(df_min, source=df_ident)
     df_parsed <- pm_rebuild(df_parsed,
                             output="full",

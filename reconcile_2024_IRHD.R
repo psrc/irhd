@@ -377,3 +377,6 @@ new_IRHD_county <- summary_county(new_IRHD)
 # dbWriteTable(conn = elmer_connection, name = table_id, value = IRHD_clean, overwrite = TRUE)
 # dbExecute(conn=elmer_connection, statement=sql_export)
 # dbDisconnect(elmer_connection)
+
+## e) Clean up environment
+rm(elmer_connection, IRHD_county_ami, IRHD_county_bedrooms, new_IRHD, new_IRHD_county, new_IRHD_county_ami, new_IRHD_county_bedrooms, table_id)

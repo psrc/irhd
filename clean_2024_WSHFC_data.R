@@ -244,10 +244,23 @@ WSHFC_cleaned <- select_and_arrange_columns_function(WSHFC_cleaned)
 #set DataSource field
 WSHFC_cleaned$data_source = "WSHFC"
 
+# For known records where address is embedded in property_name, copy it to reported_address
+WSHFC_cleaned <- WSHFC_cleaned %>%
+  mutate(reported_address = ifelse(as.character(property_id) %in% c("18494", "18495", "18422") & is.na(reported_address),
+                                   property_name,
+                                   reported_address))
+
 #clean address field for matching
 WSHFC_cleaned$full_address <- str_c(WSHFC_cleaned$reported_address,', ',WSHFC_cleaned$city,', WA ',WSHFC_cleaned$zip)
 WSHFC_cleaned <- as.data.frame(WSHFC_cleaned)
-WSHFC_cleaned <- add_cleaned_addresses(WSHFC_cleaned) %>% setDT()
+
+# Split into rows with and without complete/standard address data, clean only standard rows
+# Standard = non-NA fields AND reported_address begins with a digit (filters out "Multiple Sites", hyphenated, bare street names, etc.)
+WSHFC_complete   <- WSHFC_cleaned %>% filter(!is.na(reported_address) & !is.na(city) & !is.na(zip) & str_detect(reported_address, "^\\d"))
+WSHFC_incomplete <- WSHFC_cleaned %>% filter(is.na(reported_address) | is.na(city) | is.na(zip) | !str_detect(reported_address, "^\\d"))
+
+WSHFC_complete <- add_cleaned_addresses(WSHFC_complete)
+WSHFC_cleaned <- bind_rows(WSHFC_complete, WSHFC_incomplete) %>% setDT()
 
 #set proper data types for matching
 WSHFC_cleaned$data_source <- as.character(WSHFC_cleaned$data_source)
@@ -255,4 +268,4 @@ WSHFC_cleaned$project_id <- as.character(WSHFC_cleaned$project_id)
 WSHFC_cleaned$property_id <- as.character(WSHFC_cleaned$property_id)
 WSHFC_cleaned$in_service_date <- as.character(WSHFC_cleaned$in_service_date)
 
-rm(WSHFC_raw, WSHFC_path, select_and_arrange_columns_function,vintage_year_cleaning_script)
+rm(WSHFC_raw, WSHFC_path, WSHFC_complete, WSHFC_incomplete, select_and_arrange_columns_function,vintage_year_cleaning_script)
